@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace OCA\NextInject\Controller;
+namespace OCA\ElementInjector\Controller;
 
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\TemplateResponse;
@@ -19,16 +19,16 @@ class PageController extends Controller {
 	 * @NoCSRFRequired
 	 */
 	public function index(): TemplateResponse {
-		return new TemplateResponse('nextinject', 'index');
+		Util::addScript('elementinjector', 'admin');
+		return new TemplateResponse('elementinjector', 'settings-personal');
 	}
 
 	/**
-	 * @AdminRequired
+	 * @NoAdminRequired 
 	 * @NoCSRFRequired
 	 */
-	public function admin(): TemplateResponse {
-		Util::addScript('nextinject', 'admin');
-		Util::addStyle('nextinject', 'style');
-		return new TemplateResponse('nextinject', 'settings-admin');
+	public function settings(): TemplateResponse {
+		Util::addScript('elementinjector', 'admin');
+		return new TemplateResponse('elementinjector', 'settings-personal');
 	}
 }
