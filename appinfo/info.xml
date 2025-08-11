@@ -5,20 +5,20 @@
 	<name>NextInject</name>
 	<summary>Konfigurierbare Element-Injection für Dateien</summary>
 	<description><![CDATA[
-		Ermöglicht es Benutzern, benutzerdefinierte Elemente basierend auf 
-		Dateinamen-Mustern zu konfigurieren und automatisch in die Dateienansicht 
+		Ermöglicht es Benutzern, benutzerdefinierte Elemente basierend auf
+		Dateinamen-Mustern zu konfigurieren und automatisch in die Dateienansicht
 		einzufügen. Ideal für Dokumentenverwaltung und visuelle Kennzeichnung.
 	]]></description>
 	<version>1.0.0</version>
 	<licence>agpl</licence>
-	<author mail="deine@email.com" homepage="https://tobiassauer.com">Tobias Sauer</author>
+	<author mail="git@yxanu.com" homepage="https://tobiassauer.com">Tobias Sauer</author>
 	<namespace>ElementInjector</namespace>
 	<category>files</category>
 	<category>tools</category>
-	<website>https://github.com/deinusername/nextcloud-elementinjector</website>
-	<bugs>https://github.com/deinusername/nextcloud-elementinjector/issues</bugs>
-	<repository type="git">https://github.com/deinusername/nextcloud-elementinjector.git</repository>
-	<screenshot>https://raw.githubusercontent.com/deinusername/nextcloud-elementinjector/main/screenshots/screenshot1.png</screenshot>
+	<website>https://github.com/Yxanu/nextinject</website>
+	<bugs>https://github.com/Yxanu/nextinject/issues</bugs>
+	<repository type="git">https://github.com/Yxanu/nextinject.git</repository>
+	<screenshot>https://github.com/Yxanu/nextinject/nextcloud-elementinjector/main/screenshots/screenshot1.png</screenshot>
 	<dependencies>
 		<nextcloud min-version="25" max-version="32"/>
 	</dependencies>
