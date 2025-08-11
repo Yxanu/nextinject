@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	  xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+	<id>nextinject</id>
+	<n>NextInject</n>
+	<summary>Admin-konfigurierbare Element-Injection für Dateien</summary>
+	<description><![CDATA[
+		Ermöglicht es Administratoren, systemweite Element-Injection basierend auf 
+		Dateinamen-Mustern zu konfigurieren. Ideal für einheitliche Dokumentenkennzeichnung 
+		in der gesamten Organisation.
+	]]></description>
+	<version>1.0.0</version>
+	<licence>agpl</licence>
+	<author mail="deine@email.com" homepage="https://deine-website.com">Dein Name</author>
+	<namespace>NextInject</namespace>
+	<category>files</category>
+	<category>tools</category>
+	<website>https://github.com/deinusername/nextcloud-nextinject</website>
+	<bugs>https://github.com/deinusername/nextcloud-nextinject/issues</bugs>
+	<repository type="git">https://github.com/deinusername/nextcloud-nextinject.git</repository>
+	<screenshot>https://raw.githubusercontent.com/deinusername/nextcloud-nextinject/main/screenshots/screenshot1.png</screenshot>
+	<dependencies>
+		<nextcloud min-version="25" max-version="28"/>
+	</dependencies>
+	<settings>
+		<admin>OCA\NextInject\Settings\Admin</admin>
+	</settings>
+</info>
