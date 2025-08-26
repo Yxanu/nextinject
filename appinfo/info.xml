@@ -18,7 +18,7 @@
 	<website>https://github.com/Yxanu/nextinject</website>
 	<bugs>https://github.com/Yxanu/nextinject/issues</bugs>
 	<repository type="git">https://github.com/Yxanu/nextinject.git</repository>
-	<screenshot>https://github.com/Yxanu/nextinject/nextcloud-elementinjector/main/screenshots/screenshot1.png</screenshot>
+	<screenshot>https://raw.githubusercontent.com/Yxanu/nextinject/main/img/nextinject.png</screenshot>
 	<dependencies>
 		<nextcloud min-version="25" max-version="32"/>
 	</dependencies>

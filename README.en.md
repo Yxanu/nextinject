@@ -1,41 +1,40 @@
-# Nextcloud Element Injector App
+# NextCloud Element Injector App
 
+## Configuration
 
-## Konfiguration
+### Personal Settings
 
-### Persönliche Einstellungen
+1. Go to `Settings` → `Personal` → `Element Injector`
+2. Configure your text patterns and templates
+3. Save the configuration
 
-1. Gehe zu `Einstellungen` → `Persönlich` → `Element Injector`
-2. Konfiguriere deine Text-Muster und Templates
-3. Speichere die Konfiguration
+### Default Configuration
 
-### Standard-Konfiguration
+The app comes with the following default templates:
 
-Die App kommt mit folgenden Standard-Templates:
+| Text Pattern | Template | Description |
+|--------------|----------|-------------|
+| `_AN` | Offer | Offer badge |
+| `_RE` | Invoice | Invoice badge |
+| `_LI` | Delivery | Delivery badge |
+| `_MA` | Reminder | Reminder badge |
 
-| Text-Muster | Template | Beschreibung |
-|-------------|----------|-------------|
-| `_AN` | Angebot | Angebots-Badge |
-| `_RE` | Rechnung | Rechnungs-Badge |
-| `_LI` | Lieferung | Lieferungs-Badge |
-| `_MA` | Mahnung | Mahnungs-Badge |
+### Template Syntax
 
-### Template-Syntax
-
-Templates verwenden HTML mit CSS-Klassen:
+Templates use HTML with CSS classes:
 
 ```html
 <span class="badge badge-info">
-    <i class="fas fa-file-invoice"></i> Angebot
+    <i class="fas fa-file-invoice"></i> Offer
 </span>
 ```
 
-## Anpassung
+## Customization
 
-### Eigene Templates erstellen
+### Creating Custom Templates
 
 ```javascript
-// Beispiel für ein Custom Template
+// Example for a custom template
 {
     "text": "_CUSTOM",
     "template": "<span class=\"badge badge-purple\">Custom</span>",
@@ -44,9 +43,9 @@ Templates verwenden HTML mit CSS-Klassen:
 }
 ```
 
-### CSS-Anpassungen
+### CSS Customizations
 
-Bearbeite `css/style.css` für eigene Styles:
+Edit `css/style.css` for custom styles:
 
 ```css
 .badge-purple {
@@ -60,42 +59,42 @@ Bearbeite `css/style.css` für eigene Styles:
 }
 ```
 
-## Entwicklung & Debugging
+## Development & Debugging
 
-### Debug-Interface
+### Debug Interface
 
-In der Browser-Konsole verfügbar:
+Available in the browser console:
 
 ```javascript
-// Statistiken anzeigen
+// Show statistics
 InjectorDebug.getStats();
 
-// Konfiguration neu laden
+// Reload configuration
 await InjectorDebug.reloadConfig();
 
-// Alle injizierten Elemente entfernen
+// Remove all injected elements
 InjectorDebug.removeAllInjected();
 
-// Manuelle Injection testen
+// Test manual injection
 InjectorDebug.testInjection();
 ```
 
-### Logs überprüfen
+### Check Logs
 
 ```bash
-# Nextcloud Logs
+# NextCloud logs
 tail -f /path/to/nextcloud/data/nextcloud.log
 
-# Apache/Nginx Logs
+# Apache/Nginx logs
 tail -f /var/log/apache2/error.log
 tail -f /var/log/nginx/error.log
 ```
 
-## Problembehandlung
+## Troubleshooting
 
-### App wird nicht angezeigt
+### App Not Displayed
 
-1. **Cache leeren:**
+1. **Clear cache:**
    ```bash
    sudo -u www-data php occ maintenance:mode --on
    sudo -u www-data php occ app:disable elementinjector
@@ -103,39 +102,39 @@ tail -f /var/log/nginx/error.log
    sudo -u www-data php occ maintenance:mode --off
    ```
 
-2. **Berechtigungen prüfen:**
+2. **Check permissions:**
    ```bash
    ls -la apps/elementinjector/
    chown -R www-data:www-data apps/elementinjector/
    ```
 
-### JavaScript-Fehler
+### JavaScript Errors
 
-1. **Browser-Konsole öffnen** (F12)
-2. **Network-Tab prüfen** auf 404-Fehler
-3. **Console-Tab prüfen** auf JavaScript-Fehler
+1. **Open browser console** (F12)
+2. **Check Network tab** for 404 errors
+3. **Check Console tab** for JavaScript errors
 
-### API-Fehler
+### API Errors
 
-1. **CSRF-Token prüfen:**
+1. **Check CSRF token:**
    ```javascript
    console.log('CSRF Token:', OC.requestToken);
    ```
 
-2. **Netzwerk-Requests prüfen:**
+2. **Check network requests:**
    ```bash
-   # API-Endpunkt testen
+   # Test API endpoint
    curl -X GET "https://your-nextcloud.com/apps/elementinjector/api/v1/config" \
         -H "requesttoken: YOUR_TOKEN" \
         --cookie "COOKIE_STRING"
    ```
 
-## Mobile Unterstützung
+## Mobile Support
 
-Die App funktioniert auch auf mobilen Geräten:
+The app also works on mobile devices:
 
 ```css
-/* Responsive Design in css/style.css */
+/* Responsive design in css/style.css */
 @media (max-width: 768px) {
     .elementinjector-config-item {
         flex-direction: column;
@@ -154,65 +153,65 @@ Die App funktioniert auch auf mobilen Geräten:
 
 ## Updates
 
-### App-Update durchführen
+### Performing App Update
 
-1. **Backup erstellen:**
+1. **Create backup:**
    ```bash
    cp -r apps/elementinjector apps/elementinjector.backup
    ```
 
-2. **Neue Dateien kopieren**
+2. **Copy new files**
 
-3. **Cache leeren:**
+3. **Clear cache:**
    ```bash
    sudo -u www-data php occ maintenance:repair
    ```
 
-### Konfiguration migrieren
+### Migrate Configuration
 
 ```javascript
-// Export der aktuellen Konfiguration
+// Export current configuration
 const config = InjectorDebug.getStats().targetConfigs;
 localStorage.setItem('elementinjector-backup', JSON.stringify(config));
 
-// Nach Update: Import
+// After update: Import
 const backup = JSON.parse(localStorage.getItem('elementinjector-backup'));
 await InjectorDebug.setConfig(backup);
 ```
 
-## Erweiterte Features
+## Advanced Features
 
-### Batch-Konfiguration
+### Batch Configuration
 
 ```bash
-# Mehrere Konfigurationen via Script setzen
+# Set multiple configurations via script
 cat > import_config.json << 'EOF'
 [
-  {"text": "_AN", "template": "Angebot", "className": "kat-angebot", "enabled": true},
-  {"text": "_RE", "template": "Rechnung", "className": "kat-rechnung", "enabled": true}
+  {"text": "_AN", "template": "Offer", "className": "kat-angebot", "enabled": true},
+  {"text": "_RE", "template": "Invoice", "className": "kat-rechnung", "enabled": true}
 ]
 EOF
 
-# Via API importieren
+# Import via API
 curl -X POST "https://your-nextcloud.com/apps/elementinjector/api/v1/config" \
      -H "Content-Type: application/json" \
      -H "requesttoken: YOUR_TOKEN" \
      -d @import_config.json
 ```
 
-### Integration mit anderen Apps
+### Integration with Other Apps
 
 ```php
-// In einer anderen App: Konfiguration abrufen
+// In another app: Get configuration
 $configController = \OC::$server->query(\OCA\ElementInjector\Controller\ConfigController::class);
 $configs = $configController->getConfig();
 ```
 
-## API-Dokumentation
+## API Documentation
 
 ### GET /apps/elementinjector/api/v1/config
 
-Ruft die aktuelle Benutzer-Konfiguration ab.
+Retrieves the current user configuration.
 
 **Response:**
 ```json
@@ -220,7 +219,7 @@ Ruft die aktuelle Benutzer-Konfiguration ab.
   "configs": [
     {
       "text": "_AN",
-      "template": "<span class=\"badge badge-info\">Angebot</span>",
+      "template": "<span class=\"badge badge-info\">Offer</span>",
       "className": "kat-angebot",
       "enabled": true
     }
@@ -230,7 +229,7 @@ Ruft die aktuelle Benutzer-Konfiguration ab.
 
 ### POST /apps/elementinjector/api/v1/config
 
-Speichert eine neue Konfiguration.
+Saves a new configuration.
 
 **Request:**
 ```json
@@ -253,9 +252,9 @@ Speichert eine neue Konfiguration.
   "message": "Configuration saved successfully"
 }
 ```
-## Lizenz
 
-Diese App steht unter der AGPL-3.0 Lizenz - siehe [LICENSE](LICENSE) für Details.
+## License
 
+This app is licensed under the AGPL-3.0 License - see [LICENSE](LICENSE) for details.
 
-**Made with love for the Nextcloud Community**
+**Made with love for the NextCloud Community**
