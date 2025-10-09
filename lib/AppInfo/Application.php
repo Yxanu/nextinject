@@ -17,14 +17,18 @@ class Application extends App implements IBootstrap {
 	}
 
 	public function register(IRegistrationContext $context): void {
-		// Register services, hooks, etc.
+		// Register the ConfigController
+		$context->registerServiceAlias('ConfigController', \OCA\ElementInjector\Controller\ConfigController::class);
 	}
 
 	public function boot(IBootContext $context): void {
 		$context->injectFn(function() {
-			// Inject JavaScript in Files app
-			Util::addScript(self::APP_ID, 'injector');
-			Util::addStyle(self::APP_ID, 'style');
+			// Only inject in Files app context
+			if (\OC::$server->getRequest()->getPathInfo() === '/apps/files/' ||
+			    strpos(\OC::$server->getRequest()->getPathInfo(), '/s/') === 0) {
+				Util::addScript(self::APP_ID, 'injector');
+				Util::addStyle(self::APP_ID, 'style');
+			}
 		});
 	}
 }

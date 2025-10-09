@@ -9,7 +9,7 @@
 		Dateinamen-Mustern zu konfigurieren und automatisch in die Dateienansicht
 		einzufügen. Ideal für Dokumentenverwaltung und visuelle Kennzeichnung.
 	]]></description>
-	<version>1.0.0</version>
+	<version>1.1.0</version>
 	<licence>agpl</licence>
 	<author mail="git@yxanu.com" homepage="https://tobiassauer.com">Tobias Sauer</author>
 	<namespace>ElementInjector</namespace>
@@ -20,7 +20,7 @@
 	<repository type="git">https://github.com/Yxanu/nextinject.git</repository>
 	<screenshot>https://raw.githubusercontent.com/Yxanu/nextinject/main/img/nextinject.png</screenshot>
 	<dependencies>
-		<nextcloud min-version="25" max-version="32"/>
+		<nextcloud min-version="31" max-version="32"/>
 	</dependencies>
 	<settings>
 		<personal>OCA\ElementInjector\Settings\Personal</personal>
