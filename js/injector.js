@@ -12,7 +12,7 @@
 		constructor() {
 			this.targetConfigs = [];
 			this.configLoaded = false;
-			this.processedElements = new WeakSet();
+			this.processedElements = new WeakMap();
 			this.isInitialized = false;
 			this.observer = null;
 			this.retryCount = 0;
@@ -44,6 +44,10 @@
 			console.log('🔧 Loading configuration from Nextcloud app...');
 			
 			try {
+				if (typeof OC === 'undefined' || !OC.requestToken) {
+					throw new Error('Nextcloud globals not available');
+				}
+
 				const response = await fetch(OC.generateUrl('/apps/elementinjector/api/v1/config'), {
 					method: 'GET',
 					headers: {
@@ -56,7 +60,9 @@
 				if (response.ok) {
 					const data = await response.json();
 					if (data.configs && data.configs.length > 0) {
-						this.targetConfigs = data.configs.filter(cfg => cfg.enabled !== false);
+						this.targetConfigs = data.configs
+							.map(cfg => this.normalizeConfig(cfg))
+							.filter(Boolean);
 						console.log(`✅ Loaded ${this.targetConfigs.length} configurations from app`);
 					} else {
 						console.log('⚠️ No app config found, using fallback');
@@ -72,6 +78,19 @@
 			}
 			
 			this.configLoaded = true;
+		}
+
+		normalizeConfig(config) {
+			if (!config || typeof config !== 'object') return null;
+			if (typeof config.text !== 'string' || typeof config.template !== 'string' || typeof config.className !== 'string') {
+				return null;
+			}
+			return {
+				text: config.text,
+				template: config.template,
+				className: config.className,
+				enabled: config.enabled !== false
+			};
 		}
 
 		getFallbackConfig() {
@@ -105,7 +124,7 @@
 				document.querySelector('.files-fileList'),
 				document.querySelector('[data-file]'),
 				document.querySelector('.app-files'),
-				document.querySelectorAll('.nametext').length > 0
+				this.getFileNameElements().length > 0
 			];
 			
 			return indicators.some(indicator => indicator);
@@ -129,9 +148,6 @@
 
 		setupNavigationListener() {
 			// Nextcloud Files App Navigation Detection
-			const originalPushState = history.pushState;
-			const originalReplaceState = history.replaceState;
-			
 			const handleNavigation = () => {
 				setTimeout(() => {
 					console.log('📍 Navigation detected, re-injecting...');
@@ -139,15 +155,22 @@
 				}, 500);
 			};
 
-			history.pushState = function(...args) {
-				originalPushState.apply(history, args);
-				handleNavigation();
-			};
+			if (!window.__nextinjectHistoryPatched) {
+				window.__nextinjectHistoryPatched = true;
 
-			history.replaceState = function(...args) {
-				originalReplaceState.apply(history, args);
-				handleNavigation();
-			};
+				const originalPushState = history.pushState;
+				const originalReplaceState = history.replaceState;
+
+				history.pushState = function(...args) {
+					originalPushState.apply(history, args);
+					handleNavigation();
+				};
+
+				history.replaceState = function(...args) {
+					originalReplaceState.apply(history, args);
+					handleNavigation();
+				};
+			}
 
 			window.addEventListener('popstate', handleNavigation);
 
@@ -251,20 +274,37 @@
 			let count = 0;
 			
 			// Spezielle Suche für Files App - fokussiert auf Dateinamen
-			const fileElements = document.querySelectorAll('.nametext');
+			const fileElements = this.getFileNameElements();
 			
 			fileElements.forEach(fileElement => {
 				const fileName = this.getFileName(fileElement);
-				if (fileName && fileName.includes(config.text)) {
+				if (config.text && fileName && fileName.includes(config.text)) {
 					if (this.shouldInject(fileElement, config.text)) {
 						this.injectAfterElement(fileElement, config);
-						this.processedElements.add(fileElement);
+						this.markInjected(fileElement, config.text);
 						count++;
 					}
 				}
 			});
 			
 			return count;
+		}
+
+		getFileNameElements() {
+			const selectors = [
+				'.nametext',
+				'.file-entry__title',
+				'.file-entry__name',
+				'.file-entry__filename',
+				'.filename',
+				'.files-list__row .file-name'
+			];
+
+			const elements = new Set();
+			selectors.forEach(selector => {
+				document.querySelectorAll(selector).forEach(el => elements.add(el));
+			});
+			return Array.from(elements);
 		}
 
 		getFileName(element) {
@@ -294,12 +334,14 @@
 		shouldInject(element, targetText) {
 			if (!element || !element.parentNode) return false;
 			
-			if (this.processedElements.has(element)) return false;
+			if (this.hasInjected(element, targetText)) return false;
 			
 			// Prüfe ob bereits ein injiziertes Element in der Nähe ist
 			const parent = element.closest('tr, .file-row, .files-fileList li');
-			if (parent && parent.querySelector('.nextcloud-injected-element')) {
-				return false;
+			if (parent) {
+				const targetAttr = this.escapeSelector(targetText);
+				const existing = parent.querySelector(`.nextcloud-injected-element[data-target-text="${targetAttr}"]`);
+				if (existing) return false;
 			}
 			
 			if (element.offsetParent === null) return false;
@@ -307,6 +349,27 @@
 			if (element.closest('.nextcloud-injected-element')) return false;
 			
 			return true;
+		}
+
+		hasInjected(element, targetText) {
+			const seen = this.processedElements.get(element);
+			return seen ? seen.has(targetText) : false;
+		}
+
+		markInjected(element, targetText) {
+			let seen = this.processedElements.get(element);
+			if (!seen) {
+				seen = new Set();
+				this.processedElements.set(element, seen);
+			}
+			seen.add(targetText);
+		}
+
+		escapeSelector(value) {
+			if (window.CSS && typeof window.CSS.escape === 'function') {
+				return window.CSS.escape(value);
+			}
+			return String(value).replace(/\"/g, '\\\"');
 		}
 
 		injectAfterElement(element, config) {
@@ -374,7 +437,13 @@
 		async reloadConfiguration() {
 			console.log('🔄 Reloading configuration...');
 			await this.loadConfigurationFromApp();
+			this.removeAllInjected();
+			this.processedElements = new WeakMap();
 			this.searchAndInject();
+		}
+
+		removeAllInjected() {
+			document.querySelectorAll(`[data-injected-by="${this.instanceId}"]`).forEach(el => el.remove());
 		}
 
 		destroy() {
@@ -392,7 +461,7 @@
 			}
 			
 			// Alle injizierten Elemente entfernen
-			document.querySelectorAll(`[data-injected-by="${this.instanceId}"]`).forEach(el => el.remove());
+			this.removeAllInjected();
 			
 			console.log(`🧹 NextcloudAppInjector destroyed (${this.instanceId})`);
 		}

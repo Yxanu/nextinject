@@ -22,19 +22,24 @@
 	display: flex;
 	align-items: center;
 	margin: 8px 0;
+	flex-wrap: wrap;
+	gap: 6px;
 }
 
 .config-row label {
-	width: 120px;
+	min-width: 120px;
 	font-weight: bold;
 }
 
 .config-text, .config-class {
-	width: 150px;
+	flex: 1 1 180px;
+	max-width: 100%;
 	margin: 0 10px;
 }
 
 .config-template {
+	flex: 1 1 360px;
+	max-width: 100%;
 	width: 400px;
 	height: 60px;
 	margin: 0 10px;
@@ -69,6 +74,7 @@
 	display: flex;
 	gap: 10px;
 	margin-top: 20px;
+	flex-wrap: wrap;
 }
 
 #elementinjector-preview {

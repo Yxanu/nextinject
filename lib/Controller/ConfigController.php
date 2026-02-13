@@ -59,15 +59,28 @@ class ConfigController extends Controller {
 		}
 
 		$configs = $this->request->getParam('configs', []);
+		if (!is_array($configs)) {
+			return new JSONResponse(['error' => 'Invalid config format'], 400);
+		}
 		
 		// Validierung
-		foreach ($configs as $config) {
+		foreach ($configs as $index => $config) {
 			if (!isset($config['text']) || !isset($config['template']) || !isset($config['className'])) {
 				return new JSONResponse(['error' => 'Invalid config format'], 400);
 			}
-			
-			// XSS Protection
-			$config['template'] = htmlspecialchars($config['template'], ENT_QUOTES, 'UTF-8');
+
+			if (!is_string($config['text']) || !is_string($config['template']) || !is_string($config['className'])) {
+				return new JSONResponse(['error' => 'Invalid config format'], 400);
+			}
+
+			// Normalize optional fields
+			if (!isset($config['enabled'])) {
+				$config['enabled'] = true;
+			} else {
+				$config['enabled'] = (bool)$config['enabled'];
+			}
+
+			$configs[$index] = $config;
 		}
 		
 		$configJson = json_encode($configs);

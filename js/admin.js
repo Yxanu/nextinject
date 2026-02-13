@@ -81,7 +81,10 @@
 
 			if (response.ok) {
 				const data = await response.json();
-				currentConfigs = data.configs || [];
+				const configs = Array.isArray(data.configs) ? data.configs : [];
+				currentConfigs = configs
+					.map(normalizeConfig)
+					.filter(Boolean);
 				renderConfigurations();
 				showMessage('Configuration loaded successfully', 'success');
 			} else {
@@ -276,7 +279,10 @@
 					try {
 						const imported = JSON.parse(e.target.result);
 						if (Array.isArray(imported)) {
-							currentConfigs = imported;
+							const normalized = imported
+								.map(normalizeConfig)
+								.filter(Boolean);
+							currentConfigs = normalized;
 							renderConfigurations();
 							showMessage('Configuration imported successfully', 'success');
 						} else {
@@ -321,6 +327,23 @@
 		const div = document.createElement('div');
 		div.textContent = text;
 		return div.innerHTML;
+	}
+
+	function normalizeConfig(config) {
+		if (!config || typeof config !== 'object') return null;
+
+		const text = typeof config.text === 'string' ? config.text : '';
+		const template = typeof config.template === 'string' ? config.template : '';
+		const className = typeof config.className === 'string' ? config.className : '';
+
+		if (!text || !template || !className) return null;
+
+		return {
+			text,
+			template,
+			className,
+			enabled: config.enabled !== false
+		};
 	}
 
 	// Hilfsfunktion für Übersetzungen (falls nicht verfügbar)

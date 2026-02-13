@@ -1,5 +1,9 @@
 # NextCloud Element Injector App
 
+## Requirements
+
+- Nextcloud 31 or 32 (per appinfo/info.xml)
+
 ## Configuration
 
 ### Personal Settings
@@ -257,4 +261,3 @@ Saves a new configuration.
 
 This app is licensed under the AGPL-3.0 License - see [LICENSE](LICENSE) for details.
 
-**Made with love for the NextCloud Community**

@@ -24,8 +24,9 @@ class Application extends App implements IBootstrap {
 	public function boot(IBootContext $context): void {
 		$context->injectFn(function() {
 			// Only inject in Files app context
-			if (\OC::$server->getRequest()->getPathInfo() === '/apps/files/' ||
-			    strpos(\OC::$server->getRequest()->getPathInfo(), '/s/') === 0) {
+			$path = \OC::$server->getRequest()->getPathInfo() ?? '';
+			if (str_starts_with($path, '/apps/files') ||
+			    str_starts_with($path, '/s/')) {
 				Util::addScript(self::APP_ID, 'injector');
 				Util::addStyle(self::APP_ID, 'style');
 			}
