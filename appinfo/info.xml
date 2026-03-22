@@ -1,18 +1,18 @@
 <?xml version="1.0"?>
 <info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	  xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
-	<id>elementinjector</id>
+	<id>nextinject</id>
 	<name>NextInject</name>
-	<summary>Konfigurierbare Element-Injection für Dateien</summary>
+	<summary>Systemweite Dateimarker und Public-Share-Aktionen</summary>
 	<description><![CDATA[
-		Ermöglicht es Benutzern, benutzerdefinierte Elemente basierend auf
-		Dateinamen-Mustern zu konfigurieren und automatisch in die Dateienansicht
-		einzufügen. Ideal für Dokumentenverwaltung und visuelle Kennzeichnung.
+		NextInject markiert Dateien und Freigaben anhand definierter Namensmuster
+		mit typisierten Badges und Public-Share-Aktionen. Administratoren pflegen
+		die Regeln zentral, ohne freies HTML oder Theme-Hardcoding.
 	]]></description>
-	<version>1.1.0</version>
+	<version>2.0.1</version>
 	<licence>agpl</licence>
 	<author mail="git@yxanu.com" homepage="https://tobiassauer.com">Tobias Sauer</author>
-	<namespace>ElementInjector</namespace>
+	<namespace>NextInject</namespace>
 	<category>files</category>
 	<category>tools</category>
 	<website>https://github.com/Yxanu/nextinject</website>
@@ -23,6 +23,6 @@
 		<nextcloud min-version="31" max-version="32"/>
 	</dependencies>
 	<settings>
-		<personal>OCA\ElementInjector\Settings\Personal</personal>
+		<admin>OCA\NextInject\Settings\Admin</admin>
 	</settings>
 </info>

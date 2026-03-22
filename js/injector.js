@@ -1,519 +1,478 @@
-// js/injector.js - Frontend Injector für Files App
-(function() {
+(() => {
 	'use strict';
-	
-	
-	if (window.NextcloudElementInjector) {
-		console.log('NextcloudElementInjector already exists, skipping initialization');
+
+	if (window.__nextInjectRuntimeActive) {
 		return;
 	}
 
-	class NextcloudAppInjector {
+	const detectSurface = () => {
+		const path = window.location.pathname || '';
+		if (document.body?.id === 'body-public' || /\/(index\.php\/)?s\//.test(path)) {
+			return 'public';
+		}
+		if (path.includes('/apps/files')) {
+			return 'files';
+		}
+		return null;
+	};
+
+	const surface = detectSurface();
+	if (!surface) {
+		return;
+	}
+
+	window.__nextInjectRuntimeActive = true;
+
+	class NextInjectRuntime {
 		constructor() {
-			this.targetConfigs = [];
-			this.configLoaded = false;
-			this.processedElements = new WeakMap();
-			this.isInitialized = false;
+			this.surface = surface;
+			this.rules = [];
+			this.settings = { injectionDelay: 180, debugMode: false };
+			this.scanTimer = null;
 			this.observer = null;
-			this.retryCount = 0;
-			this.maxRetries = 20;
-			this.injectedCount = 0;
-			
-			this.instanceId = 'app_injector_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-			
-			console.log(`🚀 NextcloudAppInjector created (${this.instanceId})`);
-			this.init();
+			this.historyPatched = false;
+			this.instanceId = `nextinject-${Date.now()}`;
+		}
+
+		log(...args) {
+			if (this.settings.debugMode) {
+				console.log('[NextInject]', ...args);
+			}
 		}
 
 		async init() {
-			if (document.body.hasAttribute('data-injector-active')) {
-				console.log('❌ Another injector instance is already active');
-				return;
-			}
-
-			document.body.setAttribute('data-injector-active', this.instanceId);
-			
-			// Konfiguration aus der App laden
-			await this.loadConfigurationFromApp();
-			
-			// Mit normalem Ablauf fortfahren
-			this.waitForContent();
+			await this.loadConfig();
+			this.mount();
 		}
 
-		async loadConfigurationFromApp() {
-			console.log('🔧 Loading configuration from Nextcloud app...');
-			
+		async loadConfig() {
 			try {
-				if (typeof OC === 'undefined' || !OC.requestToken) {
-					throw new Error('Nextcloud globals not available');
-				}
-
-				const response = await fetch(OC.generateUrl('/apps/elementinjector/api/v1/config'), {
-					method: 'GET',
-					headers: {
-						'Content-Type': 'application/json',
-						'requesttoken': OC.requestToken
-					},
-					credentials: 'same-origin'
+				const response = await fetch(OC.generateUrl('/apps/nextinject/api/v1/frontend/config'), {
+					credentials: 'same-origin',
+					headers: { Accept: 'application/json' },
 				});
-
-				if (response.ok) {
-					const data = await response.json();
-					if (data.configs && data.configs.length > 0) {
-						this.targetConfigs = data.configs
-							.map(cfg => this.normalizeConfig(cfg))
-							.filter(Boolean);
-						console.log(`✅ Loaded ${this.targetConfigs.length} configurations from app`);
-					} else {
-						console.log('⚠️ No app config found, using fallback');
-						this.targetConfigs = this.getFallbackConfig();
-					}
+				const contentType = response.headers.get('content-type') || '';
+				if (!contentType.includes('application/json')) {
+					throw new Error(`Unexpected response type (${response.status})`);
+				}
+				const payload = await response.json();
+				if (!Array.isArray(payload.rules)) {
+					throw new Error(`Invalid config payload (${response.status})`);
+				}
+				this.rules = Array.isArray(payload.rules) ? payload.rules : [];
+				this.settings = payload.settings || this.settings;
+				if (!response.ok) {
+					this.log(`Loaded config with non-200 status ${response.status}`, payload);
 				} else {
-					throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+					this.log('Loaded config', this.rules);
 				}
-				
 			} catch (error) {
-				console.warn('⚠️ Failed to load app config, using fallback:', error);
-				this.targetConfigs = this.getFallbackConfig();
+				console.error('NextInject config loading failed:', error);
+				this.rules = [];
 			}
-			
-			this.configLoaded = true;
 		}
 
-		normalizeConfig(config) {
-			if (!config || typeof config !== 'object') return null;
-			if (typeof config.text !== 'string' || typeof config.template !== 'string' || typeof config.className !== 'string') {
-				return null;
+		mount() {
+			this.scheduleScan();
+			this.setupObserver();
+			this.patchHistory();
+			window.addEventListener('hashchange', () => this.scheduleScan());
+			window.addEventListener('load', () => this.scheduleScan());
+		}
+
+		setupObserver() {
+			const target = this.getObserverTarget();
+			if (!target) {
+				return;
 			}
+
+			this.observer = new MutationObserver(() => this.scheduleScan());
+			this.observer.observe(target, { childList: true, subtree: true, characterData: true });
+		}
+
+		getObserverTarget() {
+			return document.querySelector('#content')
+				|| document.querySelector('#app-content')
+				|| document.body;
+		}
+
+		patchHistory() {
+			if (window.__nextInjectHistoryPatched) {
+				return;
+			}
+
+			window.__nextInjectHistoryPatched = true;
+			const trigger = () => this.scheduleScan();
+			const originalPushState = history.pushState;
+			const originalReplaceState = history.replaceState;
+
+			history.pushState = (...args) => {
+				originalPushState.apply(history, args);
+				trigger();
+			};
+			history.replaceState = (...args) => {
+				originalReplaceState.apply(history, args);
+				trigger();
+			};
+		}
+
+		scheduleScan() {
+			window.clearTimeout(this.scanTimer);
+			this.scanTimer = window.setTimeout(() => this.scan(), this.settings.injectionDelay || 180);
+		}
+
+		scan() {
+			this.cleanup();
+
+			const contextLabel = this.getContextLabel();
+			const fileTargets = this.getFileTargets();
+			const applicableRules = this.rules
+				.filter((rule) => Array.isArray(rule.surfaces) && rule.surfaces.includes(this.surface))
+				.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+
+			if (this.surface === 'files' || this.surface === 'public') {
+				fileTargets.forEach((target) => {
+					const matchingRule = applicableRules.find((rule) => this.matches(target.name, rule.matcher));
+					if (matchingRule) {
+						this.injectBadge(target, matchingRule);
+					}
+				});
+			}
+
+			if (this.surface === 'public') {
+				const publicContext = this.getPublicContext(contextLabel);
+				const activePublicRule = applicableRules.find((rule) =>
+					rule.surfaces.includes('public') && this.contextMatchesRule(publicContext, rule)
+				) || null;
+
+				this.applyPublicThemeState(activePublicRule, publicContext);
+				this.injectPublicActions(contextLabel, activePublicRule, publicContext);
+			}
+		}
+
+		cleanup() {
+			document.querySelectorAll(`[data-nextinject-owner="${this.instanceId}"]`).forEach((node) => node.remove());
+			document.querySelectorAll('.nextinject-runtime-match').forEach((node) => node.classList.remove('nextinject-runtime-match'));
+			document.body?.classList.remove('AN_open', 'RE_open', 'nextinject-offer-open', 'nextinject-invoice-open');
+			document.querySelector('#header')?.classList.remove('gimmick_active');
+			const provenExpert = document.querySelector('#ProvenExpert_widgetbar_container');
+			if (provenExpert instanceof HTMLElement) {
+				provenExpert.style.display = '';
+			}
+		}
+
+		getContextLabel() {
+			const candidates = [
+				document.querySelector('#header .header-title'),
+				document.querySelector('#header .header-appname'),
+				document.querySelector('.public-page__heading'),
+				document.querySelector('.files-list__row-name-link'),
+				document.querySelector('#nextcloud'),
+				document.querySelector('#content > h1'),
+			];
+
+			for (const candidate of candidates) {
+				const text = candidate?.textContent?.trim();
+				if (text) {
+					return text;
+				}
+			}
+
+			return document.title.replace(/\s*-\s*Nextcloud.*$/i, '').trim();
+		}
+
+		getFileTargets() {
+			const modernRows = this.getModernFileTargets();
+			if (modernRows.length > 0) {
+				return modernRows;
+			}
+
+			const legacyRows = this.getLegacyFileTargets();
+			if (legacyRows.length > 0) {
+				return legacyRows;
+			}
+
+			return [];
+		}
+
+		getModernFileTargets() {
+			const rows = Array.from(document.querySelectorAll('tr.files-list__row, [data-cy-files-list-row]'));
+			const targets = [];
+			const seen = new Set();
+
+			rows.forEach((row) => {
+				if (!(row instanceof HTMLElement)) {
+					return;
+				}
+
+				const name = String(
+					row.dataset.cyFilesListRowName
+					|| row.getAttribute('data-cy-files-list-row-name')
+					|| ''
+				).trim();
+				if (!name || seen.has(name)) {
+					return;
+				}
+
+				const node = row.querySelector('.files-list__row-name-text > .files-list__row-name-')
+					|| row.querySelector('.files-list__row-name-text')
+					|| row.querySelector('.files-list__row-name-link')
+					|| row.querySelector('[data-cy-files-list-row-name]');
+				if (!(node instanceof HTMLElement)) {
+					return;
+				}
+
+				seen.add(name);
+				targets.push({ node, name, row });
+			});
+
+			return targets;
+		}
+
+		getLegacyFileTargets() {
+			const rows = Array.from(document.querySelectorAll('tr[data-file], .files-filestable tbody tr'));
+			const targets = [];
+			const seen = new Set();
+
+			rows.forEach((row) => {
+				if (!(row instanceof HTMLElement) || row.querySelector('th')) {
+					return;
+				}
+
+				const node = row.querySelector('td.filename .innernametext')
+					|| row.querySelector('td.filename .nametext')
+					|| row.querySelector('td.filename a.name')
+					|| row.querySelector('td.filename')
+					|| row.querySelector('.name');
+				if (!(node instanceof HTMLElement)) {
+					return;
+				}
+
+				const rawName = String(row.getAttribute('data-file') || node.textContent || '').trim();
+				const name = rawName.replace(/\s+/g, ' ');
+				if (!name || seen.has(name)) {
+					return;
+				}
+
+				seen.add(name);
+				targets.push({ node, name, row });
+			});
+
+			return targets;
+		}
+
+		getPublicContext(contextLabel) {
+			const params = new URLSearchParams(window.location.search);
+			const dir = decodeURIComponent(params.get('dir') || '');
+			const activeViewerTitle = [
+				document.querySelector('#viewer .modal-header__name'),
+				document.querySelector('#viewer h2'),
+				document.querySelector('.viewer__title'),
+			].map((node) => node?.textContent?.trim()).find(Boolean) || '';
+
+			const breadcrumbTexts = Array.from(document.querySelectorAll('.breadcrumb, .breadcrumbs, [data-cy-files-breadcrumbs] *'))
+				.map((node) => node.textContent?.trim() || '')
+				.filter(Boolean);
+
+			const tokens = [
+				contextLabel,
+				dir,
+				activeViewerTitle,
+				...dir.split('/'),
+				...breadcrumbTexts,
+			].map((value) => String(value || '').trim()).filter(Boolean);
+
 			return {
-				text: config.text,
-				template: config.template,
-				className: config.className,
-				enabled: config.enabled !== false
+				contextLabel,
+				dir,
+				activeViewerTitle,
+				tokens: Array.from(new Set(tokens)),
 			};
 		}
 
-		getFallbackConfig() {
-			return [
-				{
-					text: '_AN',
-					template: '<span class="badge badge-info"><i class="fas fa-file-invoice"></i> Angebot</span>',
-					className: 'kat-angebot',
-					enabled: true
-				}
-			];
+		contextMatchesRule(context, rule) {
+			return context.tokens.some((token) => this.matches(token, rule.matcher));
 		}
 
-		waitForContent() {
-			if (this.hasMinimalContent()) {
-				console.log('✅ Files app content detected, starting injection...');
-				this.startInjection();
-			} else if (this.retryCount < this.maxRetries) {
-				this.retryCount++;
-				console.log(`⏳ Waiting for files content... (${this.retryCount}/${this.maxRetries})`);
-				setTimeout(() => this.waitForContent(), 1000);
-			} else {
-				console.warn('⚠️ Max retries reached, starting anyway...');
-				this.startInjection();
+		matches(value, matcher) {
+			if (!matcher?.value) {
+				return false;
 			}
+
+			const haystack = matcher.caseSensitive ? value : value.toLowerCase();
+			const needle = matcher.caseSensitive ? matcher.value : matcher.value.toLowerCase();
+			return haystack.includes(needle);
 		}
 
-		hasMinimalContent() {
-			const indicators = [
-				document.querySelector('#app-content-files'),
-				document.querySelector('.files-fileList'),
-				document.querySelector('[data-file]'),
-				document.querySelector('.app-files'),
-				this.getFileNameElements().length > 0
-			];
-			
-			return indicators.some(indicator => indicator);
-		}
-
-		startInjection() {
-			if (this.isInitialized) {
-				console.log('⚠️ Already initialized, skipping...');
+		injectBadge(target, rule) {
+			const host = this.resolveBadgeHost(target.node);
+			if (!host) {
 				return;
 			}
-			
-			this.isInitialized = true;
-			this.searchAndInject();
-			this.setupUniqueObserver();
 
-			console.log(`✅ NextcloudAppInjector active (${this.instanceId})`);
-			
-			// Auf Navigation in Files App hören
-			this.setupNavigationListener();
+			const badge = document.createElement('span');
+			badge.className = `nextinject-badge ${rule.badge.className || ''}`;
+			badge.dataset.nextinjectOwner = this.instanceId;
+			badge.dataset.nextinjectRule = rule.id;
+			badge.innerHTML = `
+				<span class="nextinject-badge__icon">${this.escape(rule.badge.icon || '')}</span>
+				<span>${this.escape(rule.badge.text || rule.label)}</span>
+			`;
+			host.insertAdjacentElement('afterend', badge);
+			host.classList.add('nextinject-runtime-match');
 		}
 
-		setupNavigationListener() {
-			// Nextcloud Files App Navigation Detection
-			const handleNavigation = () => {
-				setTimeout(() => {
-					console.log('📍 Navigation detected, re-injecting...');
-					this.searchAndInject();
-				}, 500);
+		resolveBadgeHost(node) {
+			const modernRow = node.closest?.('tr.files-list__row, [data-cy-files-list-row]');
+			const modernNameText = modernRow?.querySelector?.('.files-list__row-name-text');
+			if (modernNameText) {
+				return modernNameText;
+			}
+
+			const nestedName = node.querySelector?.('.innernametext, .nametext, a.name, .files-list__row-name-link');
+			if (nestedName) {
+				return nestedName;
+			}
+
+			return node.closest('.nametext')
+				|| node.closest('.filename')
+				|| node.closest('a')
+				|| node;
+		}
+
+		injectPublicActions(contextLabel, activeRule, publicContext) {
+			const headerHost = document.querySelector('#header .header-end')
+				|| document.querySelector('#header .header-right')
+				|| document.querySelector('#header')
+				|| document.body;
+
+			if (!activeRule?.headerAction) {
+				return;
+			}
+
+			const presetKey = activeRule.badge?.key || activeRule.badgePreset || '';
+			if (presetKey === 'angebot' || presetKey === 'rechnung') {
+				this.injectLegacyThemeCta(headerHost, activeRule, publicContext);
+				return;
+			}
+
+			const wrapper = document.createElement('div');
+			wrapper.className = 'nextinject-public-actions';
+			wrapper.dataset.nextinjectOwner = this.instanceId;
+
+			const link = document.createElement('a');
+			link.className = `nextinject-public-action nextinject-public-action--${activeRule.headerAction.variant || 'secondary'}`;
+			link.href = this.resolveActionUrl(activeRule.headerAction.url, {
+				contextLabel,
+				fileName: publicContext.activeViewerTitle || publicContext.dir,
+			});
+			link.target = '_blank';
+			link.rel = 'noreferrer noopener';
+			link.textContent = activeRule.headerAction.label;
+			wrapper.appendChild(link);
+
+			const publicPageMenu = headerHost.querySelector('#public-page-menu');
+			if (publicPageMenu) {
+				headerHost.insertBefore(wrapper, publicPageMenu);
+			} else {
+				headerHost.appendChild(wrapper);
+			}
+		}
+
+		applyPublicThemeState(activeRule, publicContext) {
+			if (!activeRule) {
+				return;
+			}
+
+			const presetKey = activeRule.badge?.key || activeRule.badgePreset || '';
+			const body = document.body;
+			const header = document.querySelector('#header');
+			const provenExpert = document.querySelector('#ProvenExpert_widgetbar_container');
+
+			if (presetKey === 'angebot') {
+				body?.classList.add('AN_open', 'nextinject-offer-open');
+				header?.classList.add('gimmick_active');
+			}
+
+			if (presetKey === 'rechnung') {
+				body?.classList.add('RE_open', 'nextinject-invoice-open');
+			}
+
+			if ((presetKey === 'angebot' || presetKey === 'rechnung') && provenExpert instanceof HTMLElement) {
+				provenExpert.style.display = 'block';
+			}
+		}
+
+		injectLegacyThemeCta(headerHost, activeRule, publicContext) {
+			const presetKey = activeRule.badge?.key || activeRule.badgePreset || '';
+			const insertBeforeTarget = headerHost.querySelector('#header-primary-action')
+				|| headerHost.querySelector('#public-page-menu')
+				|| null;
+
+			const context = {
+				contextLabel: publicContext.contextLabel,
+				fileName: publicContext.activeViewerTitle || publicContext.dir,
 			};
 
-			if (!window.__nextinjectHistoryPatched) {
-				window.__nextinjectHistoryPatched = true;
-
-				const originalPushState = history.pushState;
-				const originalReplaceState = history.replaceState;
-
-				history.pushState = function(...args) {
-					originalPushState.apply(history, args);
-					handleNavigation();
-				};
-
-				history.replaceState = function(...args) {
-					originalReplaceState.apply(history, args);
-					handleNavigation();
-				};
-			}
-
-			window.addEventListener('popstate', handleNavigation);
-
-			// Auch auf Hash-Änderungen hören
-			window.addEventListener('hashchange', handleNavigation);
-		}
-
-		setupUniqueObserver() {
-			if (document.body.hasAttribute('data-observer-active')) {
-				console.log('📡 Observer already exists, skipping creation');
-				return;
-			}
-
-			document.body.setAttribute('data-observer-active', 'true');
-
-			this.observer = new MutationObserver((mutations) => {
-				const relevantMutations = mutations.filter(mutation => {
-					if (mutation.type === 'childList') {
-						return Array.from(mutation.addedNodes).some(node => 
-							node.nodeType === Node.ELEMENT_NODE && 
-							(node.classList.contains('nametext') || 
-							 node.querySelector('.nametext') ||
-							 node.hasAttribute('data-file'))
-						);
-					}
-					if (mutation.type === 'characterData') {
-						const text = mutation.target.textContent;
-						return this.targetConfigs.some(config => text.includes(config.text));
-					}
-					return false;
-				});
-
-				if (relevantMutations.length > 0) {
-					this.throttledSearch();
-				}
-			});
-
-			// Observer auf Files-spezifische Container beschränken
-			const targetContainer = this.getFilesObserverTarget();
-			
-			this.observer.observe(targetContainer, {
-				childList: true,
-				subtree: true,
-				characterData: true
-			});
-
-			console.log('📡 Files-specific MutationObserver started on:', targetContainer.tagName);
-		}
-
-		getFilesObserverTarget() {
-			const containers = [
-				'#app-content-files',
-				'.files-fileList',
-				'#app-content',
-				'#app',
-				'body'
-			];
-
-			for (const selector of containers) {
-				const element = document.querySelector(selector);
-				if (element) {
-					return element;
+			if (presetKey === 'angebot' && activeRule.headerAction) {
+				const link = document.createElement('a');
+				link.className = 'cta_AN box';
+				link.dataset.nextinjectOwner = this.instanceId;
+				link.href = this.resolveActionUrl(activeRule.headerAction.url, context);
+				link.target = '_blank';
+				link.rel = 'noreferrer noopener';
+				link.innerHTML = '<i></i><span>Angebot sofort bestätigen</span>';
+				if (insertBeforeTarget) {
+					headerHost.insertBefore(link, insertBeforeTarget);
+				} else {
+					headerHost.appendChild(link);
 				}
 			}
-			
-			return document.body;
-		}
 
-		throttledSearch() {
-			if (this.searchTimeout) {
-				clearTimeout(this.searchTimeout);
-			}
-			
-			this.searchTimeout = setTimeout(() => {
-				this.searchAndInject();
-			}, 300); // Kürzeres Throttling für bessere UX
-		}
+			if (presetKey === 'rechnung' && activeRule.headerAction) {
+				const payment = document.createElement('a');
+				payment.className = 'cta_RE box zahlung';
+				payment.dataset.nextinjectOwner = this.instanceId;
+				payment.href = this.resolveActionUrl(activeRule.headerAction.url, context);
+				payment.target = '_blank';
+				payment.rel = 'noreferrer noopener';
+				payment.innerHTML = '<i></i><span>Zahlung mitteilen</span>';
 
-		searchAndInject() {
-			const startTime = performance.now();
-			let foundElements = 0;
+				const iban = document.createElement('a');
+				iban.className = 'cta_RE iban box';
+				iban.dataset.nextinjectOwner = this.instanceId;
+				iban.innerHTML = '<span>IBAN: <b>DE17664900000063058203</b></span>';
 
-			try {
-				this.targetConfigs.forEach(config => {
-					if (config.enabled !== false) {
-						foundElements += this.processTargetConfig(config);
-					}
-				});
-
-				const duration = performance.now() - startTime;
-				if (foundElements > 0) {
-					console.log(`🔍 Files injection: ${foundElements} new elements found in ${duration.toFixed(2)}ms`);
+				if (insertBeforeTarget) {
+					headerHost.insertBefore(payment, insertBeforeTarget);
+					headerHost.insertBefore(iban, insertBeforeTarget);
+				} else {
+					headerHost.appendChild(payment);
+					headerHost.appendChild(iban);
 				}
-				
-			} catch (error) {
-				console.error('❌ Error in files searchAndInject:', error);
 			}
 		}
 
-		processTargetConfig(config) {
-			let count = 0;
-			
-			// Spezielle Suche für Files App - fokussiert auf Dateinamen
-			const fileElements = this.getFileNameElements();
-			
-			fileElements.forEach(fileElement => {
-				const fileName = this.getFileName(fileElement);
-				if (config.text && fileName && fileName.includes(config.text)) {
-					if (this.shouldInject(fileElement, config.text)) {
-						this.injectAfterElement(fileElement, config);
-						this.markInjected(fileElement, config.text);
-						count++;
-					}
-				}
-			});
-			
-			return count;
+		resolveActionUrl(urlTemplate, context) {
+			return String(urlTemplate || '')
+				.replaceAll('{contextLabel}', encodeURIComponent(context?.contextLabel || 'Freigabe'))
+				.replaceAll('{fileName}', encodeURIComponent(context?.fileName || context?.contextLabel || 'Datei'));
 		}
 
-		getFileNameElements() {
-			const selectors = [
-				'.nametext',
-				'.file-entry__title',
-				'.file-entry__name',
-				'.file-entry__filename',
-				'.filename',
-				'.files-list__row .file-name'
-			];
-
-			const elements = new Set();
-			selectors.forEach(selector => {
-				document.querySelectorAll(selector).forEach(el => elements.add(el));
-			});
-			return Array.from(elements);
-		}
-
-		getFileName(element) {
-			// Verschiedene Wege den Dateinamen zu extrahieren
-			if (element.textContent) {
-				return element.textContent.trim();
-			}
-			
-			if (element.title) {
-				return element.title;
-			}
-			
-			const dataFile = element.getAttribute('data-file');
-			if (dataFile) {
-				return dataFile;
-			}
-			
-			// Suche in Kind-Elementen
-			const nameSpan = element.querySelector('.innernametext, .name, .filename');
-			if (nameSpan) {
-				return nameSpan.textContent.trim();
-			}
-			
-			return '';
-		}
-
-		shouldInject(element, targetText) {
-			if (!element || !element.parentNode) return false;
-			
-			if (this.hasInjected(element, targetText)) return false;
-			
-			// Prüfe ob bereits ein injiziertes Element in der Nähe ist
-			const parent = element.closest('tr, .file-row, .files-fileList li');
-			if (parent) {
-				const targetAttr = this.escapeSelector(targetText);
-				const existing = parent.querySelector(`.nextcloud-injected-element[data-target-text="${targetAttr}"]`);
-				if (existing) return false;
-			}
-			
-			if (element.offsetParent === null) return false;
-			
-			if (element.closest('.nextcloud-injected-element')) return false;
-			
-			return true;
-		}
-
-		hasInjected(element, targetText) {
-			const seen = this.processedElements.get(element);
-			return seen ? seen.has(targetText) : false;
-		}
-
-		markInjected(element, targetText) {
-			let seen = this.processedElements.get(element);
-			if (!seen) {
-				seen = new Set();
-				this.processedElements.set(element, seen);
-			}
-			seen.add(targetText);
-		}
-
-		escapeSelector(value) {
-			if (window.CSS && typeof window.CSS.escape === 'function') {
-				return window.CSS.escape(value);
-			}
-			return String(value).replace(/\"/g, '\\\"');
-		}
-
-		injectAfterElement(element, config) {
-			const injectedDiv = document.createElement('span');
-			injectedDiv.className = `${config.className} nextcloud-injected-element files-badge`;
-			injectedDiv.setAttribute('data-injected-by', this.instanceId);
-			injectedDiv.setAttribute('data-target-text', config.text);
-			
-			// Template einfügen
-			injectedDiv.innerHTML = config.template;
-			
-			// Bessere Positionierung für Files App
-			const insertTarget = this.findBestInsertionPoint(element);
-			
-			if (insertTarget.nextSibling) {
-				insertTarget.parentNode.insertBefore(injectedDiv, insertTarget.nextSibling);
-			} else {
-				insertTarget.parentNode.appendChild(injectedDiv);
-			}
-
-			// Styling für Files App
-			injectedDiv.style.marginLeft = '8px';
-			injectedDiv.style.display = 'inline-block';
-			injectedDiv.style.verticalAlign = 'middle';
-			
-			// Fade-in Animation
-			injectedDiv.style.opacity = '0';
-			injectedDiv.style.transform = 'scale(0.8)';
-			injectedDiv.style.transition = 'all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)';
-			
-			requestAnimationFrame(() => {
-				injectedDiv.style.opacity = '1';
-				injectedDiv.style.transform = 'scale(1)';
-			});
-
-			this.injectedCount++;
-			console.log(`✅ Files injection #${this.injectedCount} "${config.className}" after "${config.text}"`);
-		}
-
-		findBestInsertionPoint(element) {
-			// Suche nach dem besten Einfügepunkt basierend auf Files App Struktur
-			
-			// Option 1: Direkt nach dem Dateinamen
-			if (element.classList.contains('nametext')) {
-				return element;
-			}
-			
-			// Option 2: Nach dem Name-Container
-			const nameContainer = element.closest('.name');
-			if (nameContainer) {
-				return nameContainer;
-			}
-			
-			// Option 3: Nach dem Filename-Element
-			const filenameElement = element.closest('.filename');
-			if (filenameElement) {
-				return filenameElement;
-			}
-			
-			// Fallback: Das Element selbst
-			return element;
-		}
-
-		// Konfiguration zur Laufzeit neu laden
-		async reloadConfiguration() {
-			console.log('🔄 Reloading configuration...');
-			await this.loadConfigurationFromApp();
-			this.removeAllInjected();
-			this.processedElements = new WeakMap();
-			this.searchAndInject();
-		}
-
-		removeAllInjected() {
-			document.querySelectorAll(`[data-injected-by="${this.instanceId}"]`).forEach(el => el.remove());
-		}
-
-		destroy() {
-			if (this.observer) {
-				this.observer.disconnect();
-			}
-			
-			if (this.searchTimeout) {
-				clearTimeout(this.searchTimeout);
-			}
-			
-			if (document.body.getAttribute('data-injector-active') === this.instanceId) {
-				document.body.removeAttribute('data-injector-active');
-				document.body.removeAttribute('data-observer-active');
-			}
-			
-			// Alle injizierten Elemente entfernen
-			this.removeAllInjected();
-			
-			console.log(`🧹 NextcloudAppInjector destroyed (${this.instanceId})`);
+		escape(value) {
+			return String(value)
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&#39;');
 		}
 	}
 
-	// Singleton-Instanz erstellen (nur in Files App)
+	const runtime = new NextInjectRuntime();
 	if (document.readyState === 'loading') {
-		document.addEventListener('DOMContentLoaded', () => {
-			window.NextcloudElementInjector = new NextcloudAppInjector();
-		});
+		document.addEventListener('DOMContentLoaded', () => runtime.init());
 	} else {
-		window.NextcloudElementInjector = new NextcloudAppInjector();
+		runtime.init();
 	}
-
-	// Cleanup bei Seitenwechsel
-	window.addEventListener('beforeunload', () => {
-		if (window.NextcloudElementInjector) {
-			window.NextcloudElementInjector.destroy();
-		}
-	});
-
-	// App-spezifisches Debug-Interface
-	window.InjectorDebug = {
-		getStats: () => {
-			if (window.NextcloudElementInjector) {
-				return {
-					injectedCount: window.NextcloudElementInjector.injectedCount,
-					targetConfigs: window.NextcloudElementInjector.targetConfigs,
-					instanceId: window.NextcloudElementInjector.instanceId,
-					configLoaded: window.NextcloudElementInjector.configLoaded
-				};
-			}
-		},
-		
-		reloadConfig: async () => {
-			if (window.NextcloudElementInjector) {
-				await window.NextcloudElementInjector.reloadConfiguration();
-				console.log('✅ Configuration reloaded from app');
-			}
-		},
-		
-		removeAllInjected: () => {
-			document.querySelectorAll('.nextcloud-injected-element').forEach(el => el.remove());
-			console.log('🧹 All injected elements removed');
-		},
-
-		testInjection: () => {
-			if (window.NextcloudElementInjector) {
-				window.NextcloudElementInjector.searchAndInject();
-				console.log('🔍 Manual injection test triggered');
-			}
-		}
-	};
-
 })();

@@ -515,7 +515,7 @@
                 </div>
                 <div class="tech-item">
                     <h4>Storage</h4>
-                    <p>NextCloud user preferences, JSON configuration</p>
+                    <p>System-wide Nextcloud app config, typed JSON rules</p>
                 </div>
             </div>
         </div>
@@ -531,7 +531,7 @@
             <div class="installation-section">
                 <h3>Requirements</h3>
                 <ul>
-                    <li>NextCloud 25 or higher</li>
+                    <li>Nextcloud 31 or 32</li>
                     <li>PHP 7.4 or higher</li>
                     <li>Web browser with JavaScript enabled</li>
                     <li>Write permissions to NextCloud apps directory</li>
@@ -544,22 +544,22 @@
 cd /var/www/nextcloud/apps/
 
 # Clone repository
-git clone https://github.com/Yxanu/nextinject.git elementinjector
+git clone https://github.com/Yxanu/nextinject.git nextinject
 
 # Set permissions
-chown -R www-data:www-data elementinjector/
+chown -R www-data:www-data nextinject/
 
 # Enable app
-sudo -u www-data php occ app:enable elementinjector</code></pre>
+sudo -u www-data php occ app:enable nextinject</code></pre>
             </div>
 
             <div class="installation-section">
                 <h3>Verification</h3>
                 <pre><code># Check app status
-sudo -u www-data php occ app:list | grep elementinjector
+sudo -u www-data php occ app:list | grep nextinject
 
-# Test configuration endpoint
-curl -s "https://your-nextcloud.com/apps/elementinjector/api/v1/config"</code></pre>
+# Test frontend config endpoint
+curl -s "https://your-nextcloud.com/apps/nextinject/api/v1/frontend/config"</code></pre>
             </div>
         </div>
     </section>
@@ -580,7 +580,7 @@ curl -s "https://your-nextcloud.com/apps/elementinjector/api/v1/config"</code></
                 <div class="feature-card">
                     <div class="feature-icon">📚</div>
                     <h3>API Reference</h3>
-                    <p>Complete REST API documentation with examples and response schemas.</p>
+                    <p>Admin and frontend endpoints for typed rule management and runtime injection.</p>
                     <a href="README.en.md#api-documentation" class="btn btn-secondary" style="margin-top: 1rem;">View API</a>
                 </div>
                 <div class="feature-card">
@@ -598,7 +598,7 @@ curl -s "https://your-nextcloud.com/apps/elementinjector/api/v1/config"</code></
             <div class="footer-content">
                 <div class="footer-logo">
                     <img src="nextinject.png" alt="NextInject">
-                    NextInject v1.0.0
+                    NextInject v2.0.0
                 </div>
                 <div class="footer-links">
                     <a href="https://github.com/Yxanu/nextinject">Repository</a>
