@@ -1,43 +1,49 @@
 # NextInject
 
-NextInject ist eine systemweite Nextcloud-App fuer NC31 bis NC33. Sie markiert Dateien und Public Shares anhand definierter Dateimuster mit typisierten Badges und optionalen Header-Aktionen.
+[English version](README.en.md)
 
-## Status
+NextInject ist eine kleine systemweite Nextcloud-App für NC31 bis NC33. Sie markiert Dateien und Public Shares anhand definierter Namensmuster mit typisierten Badges und kann passende Public-Share-Header-Aktionen einblenden.
 
+Die Konfiguration ist admin-only, systemweit und ohne freies HTML. Regeln werden zentral in der Nextcloud-Administration gepflegt.
+
+## Funktionen
+
+- substring-basierte Regeln für Dateinamen, Share-Titel und Public-Share-Kontext
+- Badge-Presets für `_AN`, `_RE`, `_LI` und weitere Marker
+- optionale Public-Share-Header-Aktionen, z. B. `Angebot bestätigen`
+- Import und Export der Regeln als JSON
+- eigene Admin-Seite unter `Einstellungen -> Verwaltung -> NextInject`
+- Legacy-Migration aus `nextinject.admin_targets`, `elementinjector.admin_targets` und alten User-Settings
+- Theme-Kompatibilität für bestehende Public-Share-Styles wie `cta_AN`, `AN_open` und `gimmick_active`
+
+## Kompatibilität
+
+- Nextcloud: `31` bis `33`
 - App-ID: `nextinject`
-- Namespace: `OCA\\NextInject`
-- Zieloberflaechen: `Files`, `Public Share`
-- Konfiguration: nur Admins, systemweit
-- Freies HTML wird nicht mehr unterstuetzt
-
-## Kernfunktionen
-
-- substring-basierte Regeln fuer Dateinamen oder Share-Namen
-- Badge-Presets fuer `_AN`, `_RE`, `_LI` und weitere Marker
-- Public-Share-Header-Aktionen wie `Angebot bestaetigen`
-- Import/Export von Regeln als JSON
-- einmalige Legacy-Migration aus:
-  - `nextinject.admin_targets`
-  - `elementinjector.admin_targets`
-  - alten User-Settings unter `nextinject.targets` und `elementinjector.targets`
+- Namespace: `OCA\NextInject`
+- Oberflächen: `Files`, `Public Share`
+- Build-Artefakte `js/admin.js`, `css/admin.css`, `js/injector.js` und `css/style.css` werden mit versioniert, damit die App ohne Server-Build installierbar bleibt.
 
 ## Installation
 
-1. App nach `apps/nextinject` kopieren.
-2. Besitzer/Berechtigungen passend fuer den Webserver setzen.
-3. App aktivieren:
+1. Repository nach `apps/nextinject` kopieren.
+2. Besitzer und Berechtigungen passend für den Webserver setzen.
+3. App aktivieren oder aktualisieren:
 
 ```bash
-sudo -u www-data php occ app:enable nextinject
+php occ app:enable nextinject
+php occ upgrade
 ```
 
-4. Admin-Einstellungen aufrufen:
+4. Admin-Oberfläche öffnen:
 
-`Einstellungen -> Verwaltung -> NextInject`
+```text
+Einstellungen -> Verwaltung -> NextInject
+```
 
-## Standardregeln
+## Konfiguration
 
-Die App liefert diese Presets direkt mit:
+Die App startet mit sicheren Standardregeln. Public-Share-Aktionen sind explizite Regelkonfiguration und werden nicht mehr als freies HTML gespeichert.
 
 | Marker | Badge | Public-CTA |
 | --- | --- | --- |
@@ -45,11 +51,12 @@ Die App liefert diese Presets direkt mit:
 | `_RE` | Rechnung | optional |
 | `_LI` | Lieferung | keine |
 
-Weitere Presets wie `Bestellung`, `Protokoll` und `Hinweis` koennen im Admin-Dashboard hinzugefuegt werden.
+Unterstützte Platzhalter in `headerAction.url`:
 
-## Regelmodell
+- `{contextLabel}`
+- `{fileName}`
 
-Jede Regel wird als JSON mit typisierten Feldern gespeichert:
+Beispielregel:
 
 ```json
 {
@@ -65,7 +72,7 @@ Jede Regel wird als JSON mit typisierten Feldern gespeichert:
   "badgePreset": "angebot",
   "headerAction": {
     "enabled": true,
-    "label": "Angebot bestaetigen",
+    "label": "Angebot bestätigen",
     "url": "https://example.com/confirm?file={fileName}",
     "variant": "primary"
   },
@@ -74,14 +81,9 @@ Jede Regel wird als JSON mit typisierten Feldern gespeichert:
 }
 ```
 
-Unterstuetzte Platzhalter in `headerAction.url`:
+## API
 
-- `{contextLabel}`
-- `{fileName}`
-
-## Admin-API
-
-Alle Admin-Endpunkte liegen unter `/apps/nextinject/api/v1/admin/config`.
+Admin-Endpunkte liegen unter `/apps/nextinject/api/v1/admin/config` und erfordern Admin-Rechte.
 
 - `GET /apps/nextinject/api/v1/admin/config`
 - `POST /apps/nextinject/api/v1/admin/config`
@@ -96,42 +98,47 @@ Frontend-Read-Only:
 
 ## Migration
 
-Die Migration laeuft automatisch beim ersten Laden der Admin- oder Frontend-Konfiguration.
+Die Migration läuft automatisch beim ersten Laden der Admin- oder Frontend-Konfiguration.
 
-- Bestehende HTML-Templates werden nicht 1:1 uebernommen.
-- Legacy-Eintraege werden auf sichere Badge-Presets abgebildet.
-- Header-Aktionen sollten nach der Migration explizit im Admin UI konfiguriert werden.
+- Legacy-Einträge werden auf sichere Badge-Presets abgebildet.
+- Bestehende HTML-Snippets werden nicht 1:1 übernommen.
+- Header-Aktionen sollten nach der Migration explizit im Admin-UI geprüft werden.
 - Wenn keine Legacy-Daten gefunden werden, startet NextInject mit den eingebauten Standardregeln.
 
+## Entwicklung
+
+```bash
+npm install
+npm run build
+npm run lint
+find appinfo lib templates -name '*.php' -print0 | xargs -0 -n1 php -l
+```
+
+Vor einem Release sollten die gebauten Dateien in `js/` und `css/` committed sein.
+
 ## Troubleshooting
+
+### Admin-Seite bleibt leer
+
+- Browser-Konsole auf JavaScript-Fehler prüfen.
+- Sicherstellen, dass `js/admin.js` und `css/admin.css` ausgeliefert werden.
+- Nach Updates Browser-Cache hart neu laden.
+
+### Public-Share-Button fehlt
+
+- Prüfen, ob die Regel `public` in `surfaces` enthält.
+- Prüfen, ob `headerAction` aktiv ist.
+- Prüfen, ob Share-Titel, Ordnerpfad oder Dateiname den Marker enthält.
+- Bei Theme-Styles prüfen, ob `cta_AN`, `AN_open` und `gimmick_active` erwartet werden.
 
 ### App erscheint nicht
 
 ```bash
-sudo -u www-data php occ app:disable nextinject
-sudo -u www-data php occ app:enable nextinject
-sudo -u www-data php occ maintenance:repair
+php occ app:disable nextinject
+php occ app:enable nextinject
+php occ maintenance:repair
 ```
 
-### Admin-UI laedt nicht
+## Lizenz
 
-- Browser-Konsole auf JS-Fehler pruefen
-- Netzwerkanfragen auf `/apps/nextinject/api/v1/admin/config` pruefen
-- sicherstellen, dass `js/admin.js` und `css/admin.css` ausgeliefert werden
-
-### Public-Share-Buttons fehlen
-
-- pruefen, ob die Regel `public` in `surfaces` enthaelt
-- pruefen, ob `headerAction` aktiv ist
-- pruefen, ob Share-Titel oder Dateinamen den Marker enthalten
-
-## Entwicklung
-
-Syntax-Checks:
-
-```bash
-find appinfo lib templates -name '*.php' -print0 | xargs -0 -n1 php -l
-npm install
-npm run build
-npm run lint
-```
+AGPL-3.0-or-later. Siehe [LICENSE](LICENSE).
