@@ -153,12 +153,7 @@
 		cleanup() {
 			document.querySelectorAll(`[data-nextinject-owner="${this.instanceId}"]`).forEach((node) => node.remove());
 			document.querySelectorAll('.nextinject-runtime-match').forEach((node) => node.classList.remove('nextinject-runtime-match'));
-			document.body?.classList.remove('AN_open', 'RE_open', 'nextinject-offer-open', 'nextinject-invoice-open');
-			document.querySelector('#header')?.classList.remove('gimmick_active');
-			const provenExpert = document.querySelector('#ProvenExpert_widgetbar_container');
-			if (provenExpert instanceof HTMLElement) {
-				provenExpert.style.display = '';
-			}
+			document.body?.classList.remove('nextinject-offer-open', 'nextinject-invoice-open');
 		}
 
 		getContextLabel() {
@@ -166,7 +161,6 @@
 				document.querySelector('#header .header-title'),
 				document.querySelector('#header .header-appname'),
 				document.querySelector('.public-page__heading'),
-				document.querySelector('.files-list__row-name-link'),
 				document.querySelector('#nextcloud'),
 				document.querySelector('#content > h1'),
 			];
@@ -350,12 +344,6 @@
 				return;
 			}
 
-			const presetKey = activeRule.badge?.key || activeRule.badgePreset || '';
-			if (presetKey === 'angebot' || presetKey === 'rechnung') {
-				this.injectLegacyThemeCta(headerHost, activeRule, publicContext);
-				return;
-			}
-
 			const wrapper = document.createElement('div');
 			wrapper.className = 'nextinject-public-actions';
 			wrapper.dataset.nextinjectOwner = this.instanceId;
@@ -386,70 +374,13 @@
 
 			const presetKey = activeRule.badge?.key || activeRule.badgePreset || '';
 			const body = document.body;
-			const header = document.querySelector('#header');
-			const provenExpert = document.querySelector('#ProvenExpert_widgetbar_container');
 
 			if (presetKey === 'angebot') {
-				body?.classList.add('AN_open', 'nextinject-offer-open');
-				header?.classList.add('gimmick_active');
+				body?.classList.add('nextinject-offer-open');
 			}
 
 			if (presetKey === 'rechnung') {
-				body?.classList.add('RE_open', 'nextinject-invoice-open');
-			}
-
-			if ((presetKey === 'angebot' || presetKey === 'rechnung') && provenExpert instanceof HTMLElement) {
-				provenExpert.style.display = 'block';
-			}
-		}
-
-		injectLegacyThemeCta(headerHost, activeRule, publicContext) {
-			const presetKey = activeRule.badge?.key || activeRule.badgePreset || '';
-			const insertBeforeTarget = headerHost.querySelector('#header-primary-action')
-				|| headerHost.querySelector('#public-page-menu')
-				|| null;
-
-			const context = {
-				contextLabel: publicContext.contextLabel,
-				fileName: publicContext.activeViewerTitle || publicContext.dir,
-			};
-
-			if (presetKey === 'angebot' && activeRule.headerAction) {
-				const link = document.createElement('a');
-				link.className = 'cta_AN box';
-				link.dataset.nextinjectOwner = this.instanceId;
-				link.href = this.resolveActionUrl(activeRule.headerAction.url, context);
-				link.target = '_blank';
-				link.rel = 'noreferrer noopener';
-				link.innerHTML = '<i></i><span>Angebot sofort bestätigen</span>';
-				if (insertBeforeTarget) {
-					headerHost.insertBefore(link, insertBeforeTarget);
-				} else {
-					headerHost.appendChild(link);
-				}
-			}
-
-			if (presetKey === 'rechnung' && activeRule.headerAction) {
-				const payment = document.createElement('a');
-				payment.className = 'cta_RE box zahlung';
-				payment.dataset.nextinjectOwner = this.instanceId;
-				payment.href = this.resolveActionUrl(activeRule.headerAction.url, context);
-				payment.target = '_blank';
-				payment.rel = 'noreferrer noopener';
-				payment.innerHTML = '<i></i><span>Zahlung mitteilen</span>';
-
-				const iban = document.createElement('a');
-				iban.className = 'cta_RE iban box';
-				iban.dataset.nextinjectOwner = this.instanceId;
-				iban.innerHTML = '<span>IBAN: <b>DE17664900000063058203</b></span>';
-
-				if (insertBeforeTarget) {
-					headerHost.insertBefore(payment, insertBeforeTarget);
-					headerHost.insertBefore(iban, insertBeforeTarget);
-				} else {
-					headerHost.appendChild(payment);
-					headerHost.appendChild(iban);
-				}
+				body?.classList.add('nextinject-invoice-open');
 			}
 		}
 

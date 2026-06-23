@@ -1,6 +1,6 @@
 # NextInject
 
-NextInject ist eine systemweite Nextcloud-App fuer NC31/NC32. Sie markiert Dateien und Public Shares anhand definierter Dateimuster mit typisierten Badges und optionalen Header-Aktionen.
+NextInject ist eine systemweite Nextcloud-App fuer NC31 bis NC33. Sie markiert Dateien und Public Shares anhand definierter Dateimuster mit typisierten Badges und optionalen Header-Aktionen.
 
 ## Status
 
@@ -33,7 +33,7 @@ sudo -u www-data php occ app:enable nextinject
 
 4. Admin-Einstellungen aufrufen:
 
-`Einstellungen -> Verwaltung -> Additional settings -> NextInject`
+`Einstellungen -> Verwaltung -> NextInject`
 
 ## Standardregeln
 
@@ -41,8 +41,8 @@ Die App liefert diese Presets direkt mit:
 
 | Marker | Badge | Public-CTA |
 | --- | --- | --- |
-| `_AN` | Angebot | `Angebot bestaetigen` |
-| `_RE` | Rechnung | `Zahlung mitteilen` |
+| `_AN` | Angebot | optional |
+| `_RE` | Rechnung | optional |
 | `_LI` | Lieferung | keine |
 
 Weitere Presets wie `Bestellung`, `Protokoll` und `Hinweis` koennen im Admin-Dashboard hinzugefuegt werden.
@@ -66,7 +66,7 @@ Jede Regel wird als JSON mit typisierten Feldern gespeichert:
   "headerAction": {
     "enabled": true,
     "label": "Angebot bestaetigen",
-    "url": "https://www.telefonansagen.de/kontakt/bestaetigen?kunde={contextLabel}",
+    "url": "https://example.com/confirm?file={fileName}",
     "variant": "primary"
   },
   "description": "Angebots-Dokumente und Freigaben",
@@ -99,8 +99,9 @@ Frontend-Read-Only:
 Die Migration laeuft automatisch beim ersten Laden der Admin- oder Frontend-Konfiguration.
 
 - Bestehende HTML-Templates werden nicht 1:1 uebernommen.
-- Legacy-Eintraege werden auf Badge-Presets und sichere CTA-Typen abgebildet.
-- Wenn keine Legacy-Daten gefunden werden, startet NextInject mit TA-Defaults.
+- Legacy-Eintraege werden auf sichere Badge-Presets abgebildet.
+- Header-Aktionen sollten nach der Migration explizit im Admin UI konfiguriert werden.
+- Wenn keine Legacy-Daten gefunden werden, startet NextInject mit den eingebauten Standardregeln.
 
 ## Troubleshooting
 
@@ -116,7 +117,7 @@ sudo -u www-data php occ maintenance:repair
 
 - Browser-Konsole auf JS-Fehler pruefen
 - Netzwerkanfragen auf `/apps/nextinject/api/v1/admin/config` pruefen
-- sicherstellen, dass `js/admin.js` und `css/style.css` ausgeliefert werden
+- sicherstellen, dass `js/admin.js` und `css/admin.css` ausgeliefert werden
 
 ### Public-Share-Buttons fehlen
 
@@ -130,6 +131,7 @@ Syntax-Checks:
 
 ```bash
 find appinfo lib templates -name '*.php' -print0 | xargs -0 -n1 php -l
-node --check js/admin.js
-node --check js/injector.js
+npm install
+npm run build
+npm run lint
 ```

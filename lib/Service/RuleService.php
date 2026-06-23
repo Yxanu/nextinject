@@ -280,7 +280,7 @@ class RuleService {
 				],
 				'surfaces' => ['files', 'public'],
 				'badgePreset' => $preset,
-				'headerAction' => $this->defaultHeaderActionForPreset($preset),
+				'headerAction' => null,
 				'description' => $this->sanitizeText((string)($config['description'] ?? $this->getBadgePresets()[$preset]['description'] ?? ''), 180),
 				'priority' => (int)($this->getBadgePresets()[$preset]['defaultPriority'] ?? 100) - $index,
 			];
@@ -340,7 +340,7 @@ class RuleService {
 				'matcher' => ['type' => 'substring', 'value' => '_AN', 'caseSensitive' => true],
 				'surfaces' => ['files', 'public'],
 				'badgePreset' => 'angebot',
-				'headerAction' => $this->defaultHeaderActionForPreset('angebot'),
+				'headerAction' => null,
 				'description' => 'Angebots-Dokumente und Freigaben',
 				'priority' => 300,
 				'enabled' => true,
@@ -351,7 +351,7 @@ class RuleService {
 				'matcher' => ['type' => 'substring', 'value' => '_RE', 'caseSensitive' => true],
 				'surfaces' => ['files', 'public'],
 				'badgePreset' => 'rechnung',
-				'headerAction' => $this->defaultHeaderActionForPreset('rechnung'),
+				'headerAction' => null,
 				'description' => 'Rechnungs-Dokumente und Zahlungsfreigaben',
 				'priority' => 260,
 				'enabled' => true,
@@ -375,24 +375,6 @@ class RuleService {
 			'injectionDelay' => 180,
 			'debugMode' => false,
 		];
-	}
-
-	private function defaultHeaderActionForPreset(string $preset): ?array {
-		return match ($preset) {
-			'angebot' => [
-				'enabled' => true,
-				'label' => 'Angebot bestätigen',
-				'url' => 'https://www.telefonansagen.de/kontakt/bestaetigen?kunde={contextLabel}',
-				'variant' => 'primary',
-			],
-			'rechnung' => [
-				'enabled' => true,
-				'label' => 'Zahlung mitteilen',
-				'url' => 'https://www.telefonansagen.de/kontakt/zahlung-mitteilen?kunde={contextLabel}',
-				'variant' => 'secondary',
-			],
-			default => null,
-		};
 	}
 
 	private function buildStats(array $rules): array {

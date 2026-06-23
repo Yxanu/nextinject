@@ -18,7 +18,7 @@ class Admin implements ISettings {
 
 	public function getForm(): TemplateResponse {
 		Util::addScript('nextinject', 'admin');
-		Util::addStyle('nextinject', 'style');
+		Util::addStyle('nextinject', 'admin');
 
 		return new TemplateResponse(
 			'nextinject',
@@ -29,7 +29,7 @@ class Admin implements ISettings {
 	}
 
 	public function getSection(): string {
-		return 'additional';
+		return 'nextinject';
 	}
 
 	public function getPriority(): int {

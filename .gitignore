@@ -10,5 +10,7 @@ Thumbs.db
 *.swn
 .idea/
 .vscode/
+.venv/
+node_modules/
 *.orig
 # Added by automation

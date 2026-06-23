@@ -9,7 +9,7 @@
 		mit typisierten Badges und Public-Share-Aktionen. Administratoren pflegen
 		die Regeln zentral, ohne freies HTML oder Theme-Hardcoding.
 	]]></description>
-	<version>2.0.1</version>
+	<version>2.1.0</version>
 	<licence>agpl</licence>
 	<author mail="git@yxanu.com" homepage="https://tobiassauer.com">Tobias Sauer</author>
 	<namespace>NextInject</namespace>
@@ -20,9 +20,10 @@
 	<repository type="git">https://github.com/Yxanu/nextinject.git</repository>
 	<screenshot>https://raw.githubusercontent.com/Yxanu/nextinject/main/img/nextinject.png</screenshot>
 	<dependencies>
-		<nextcloud min-version="31" max-version="32"/>
+		<nextcloud min-version="31" max-version="33"/>
 	</dependencies>
 	<settings>
 		<admin>OCA\NextInject\Settings\Admin</admin>
+		<admin-section>OCA\NextInject\Sections\Admin</admin-section>
 	</settings>
 </info>

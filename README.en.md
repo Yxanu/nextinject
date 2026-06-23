@@ -1,6 +1,6 @@
 # NextInject
 
-NextInject is a system-wide Nextcloud app for NC31/NC32. It marks files and public shares based on filename patterns and can add typed header actions to public shares.
+NextInject is a system-wide Nextcloud app for NC31 through NC33. It marks files and public shares based on filename patterns and can add typed header actions to public shares.
 
 ## Status
 
@@ -33,7 +33,7 @@ sudo -u www-data php occ app:enable nextinject
 
 4. Open the admin UI:
 
-`Settings -> Administration -> Additional settings -> NextInject`
+`Settings -> Administration -> NextInject`
 
 ## Default rules
 
@@ -41,8 +41,8 @@ The app ships with these presets:
 
 | Marker | Badge | Public CTA |
 | --- | --- | --- |
-| `_AN` | Offer | `Confirm offer` |
-| `_RE` | Invoice | `Report payment` |
+| `_AN` | Offer | optional |
+| `_RE` | Invoice | optional |
 | `_LI` | Delivery | none |
 
 Additional presets such as `Order`, `Protocol`, and `Notice` can be added in the admin dashboard.
@@ -66,7 +66,7 @@ Each rule is stored as typed JSON:
   "headerAction": {
     "enabled": true,
     "label": "Confirm offer",
-    "url": "https://www.telefonansagen.de/kontakt/bestaetigen?kunde={contextLabel}",
+    "url": "https://example.com/confirm?file={fileName}",
     "variant": "primary"
   },
   "description": "Offer documents and related public shares",
@@ -99,8 +99,9 @@ Frontend read-only endpoint:
 Migration runs automatically the first time the admin UI or frontend config is loaded.
 
 - Existing HTML snippets are not copied 1:1.
-- Legacy entries are mapped to safe badge presets and typed CTA actions.
-- If no legacy data exists, NextInject starts with Telefonansagen defaults.
+- Legacy entries are mapped to safe badge presets.
+- Header actions should be configured explicitly in the admin UI after migration.
+- If no legacy data exists, NextInject starts with its built-in default rules.
 
 ## Troubleshooting
 
@@ -116,7 +117,7 @@ sudo -u www-data php occ maintenance:repair
 
 - check the browser console for JS errors
 - inspect requests to `/apps/nextinject/api/v1/admin/config`
-- make sure `js/admin.js` and `css/style.css` are delivered
+- make sure `js/admin.js` and `css/admin.css` are delivered
 
 ### Public-share buttons are missing
 
@@ -130,6 +131,7 @@ Syntax checks:
 
 ```bash
 find appinfo lib templates -name '*.php' -print0 | xargs -0 -n1 php -l
-node --check js/admin.js
-node --check js/injector.js
+npm install
+npm run build
+npm run lint
 ```

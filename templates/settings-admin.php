@@ -1,7 +1,4 @@
 <?php
-script('nextinject', 'admin');
-style('nextinject', 'style');
-
 $initialPayload = base64_encode((string)json_encode($_, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 ?>
 
