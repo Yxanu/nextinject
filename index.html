@@ -1,613 +1,676 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NextInject - NextCloud Element Injector</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="description" content="NextInject is a small admin-only Nextcloud app for typed file badges and public-share header actions.">
+	<meta property="og:title" content="NextInject">
+	<meta property="og:description" content="Typed file markers and public-share actions for Nextcloud.">
+	<meta property="og:type" content="website">
+	<meta property="og:image" content="https://nextinject.tosa.io/nextinject.png">
+	<meta name="theme-color" content="#09090b">
+	<link rel="icon" href="nextinject.png">
+	<title>NextInject - Typed Nextcloud file markers</title>
+	<style>
+		:root {
+			color-scheme: dark;
+			--bg: #09090b;
+			--surface: #121216;
+			--surface-soft: #18181d;
+			--border: #2a2a32;
+			--text: #f5f5f6;
+			--muted: #a3a3ad;
+			--quiet: #70707a;
+			--blue: #38a9ff;
+			--green: #34d399;
+			--amber: #f4b350;
+			--violet: #a78bfa;
+			--shadow: 0 18px 70px rgba(0, 0, 0, 0.35);
+		}
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-            line-height: 1.6;
-            color: #e4e4e7;
-            background: #0a0a0b;
-            font-size: 16px;
-        }
+		* {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+		}
 
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 0 24px;
-        }
+		html {
+			scroll-behavior: smooth;
+		}
 
-        header {
-            background: #0a0a0b;
-            border-bottom: 1px solid #27272a;
-            padding: 1rem 0;
-            position: fixed;
-            width: 100%;
-            top: 0;
-            z-index: 1000;
-            backdrop-filter: blur(20px);
-        }
+		body {
+			min-height: 100vh;
+			background:
+				radial-gradient(circle at 78% 8%, rgba(56, 169, 255, 0.12), transparent 30rem),
+				linear-gradient(180deg, #0d0d11 0%, var(--bg) 34rem);
+			color: var(--text);
+			font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			font-size: 16px;
+			line-height: 1.6;
+			text-rendering: geometricPrecision;
+		}
 
-        nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+		a {
+			color: inherit;
+		}
 
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: #fafafa;
-        }
+		.container {
+			width: min(1060px, calc(100% - 48px));
+			margin-inline: auto;
+		}
 
-        .logo img {
-            width: 32px;
-            height: 32px;
-        }
+		.site-header {
+			position: sticky;
+			top: 0;
+			z-index: 10;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+			background: rgba(9, 9, 11, 0.78);
+			backdrop-filter: blur(18px);
+		}
 
-        .nav-links {
-            display: flex;
-            gap: 2rem;
-        }
+		.nav {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			min-height: 72px;
+			gap: 24px;
+		}
 
-        .nav-links a {
-            color: #a1a1aa;
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 500;
-            transition: color 0.2s;
-        }
+		.brand {
+			display: inline-flex;
+			align-items: center;
+			gap: 12px;
+			color: var(--text);
+			font-size: 15px;
+			font-weight: 680;
+			letter-spacing: 0;
+			text-decoration: none;
+		}
 
-        .nav-links a:hover {
-            color: #fafafa;
-        }
+		.brand img {
+			width: 34px;
+			height: 34px;
+			border-radius: 8px;
+		}
 
-        .hero {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            padding-top: 80px;
-        }
+		.nav-links {
+			display: flex;
+			align-items: center;
+			gap: 22px;
+		}
 
-        .hero-content {
-            max-width: 600px;
-        }
+		.nav-links a {
+			color: var(--muted);
+			font-size: 13px;
+			font-weight: 560;
+			text-decoration: none;
+			transition: color 160ms ease;
+		}
 
-        .hero-content h1 {
-            font-size: 3.5rem;
-            font-weight: 700;
-            margin-bottom: 1.5rem;
-            color: #fafafa;
-            line-height: 1.1;
-        }
+		.nav-links a:hover {
+			color: var(--text);
+		}
 
-        .hero-content p {
-            font-size: 1.125rem;
-            margin-bottom: 3rem;
-            color: #a1a1aa;
-            line-height: 1.6;
-        }
+		.hero {
+			min-height: calc(100vh - 72px);
+			display: grid;
+			align-items: center;
+			padding: 92px 0 74px;
+		}
 
-        .cta-buttons {
-            display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
+		.hero-grid {
+			display: grid;
+			grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+			gap: 72px;
+			align-items: center;
+		}
 
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.2s;
-            font-family: inherit;
-        }
+		h1 {
+			max-width: 620px;
+			color: var(--text);
+			font-size: clamp(3rem, 8vw, 6.6rem);
+			font-weight: 760;
+			letter-spacing: 0;
+			line-height: 0.94;
+		}
 
-        .btn-primary {
-            background: #fafafa;
-            color: #0a0a0b;
-        }
+		.hero-copy {
+			max-width: 590px;
+			margin-top: 28px;
+			color: var(--muted);
+			font-size: clamp(1.05rem, 2vw, 1.25rem);
+			line-height: 1.65;
+		}
 
-        .btn-primary:hover {
-            background: #e4e4e7;
-        }
+		.actions {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 12px;
+			margin-top: 36px;
+		}
 
-        .btn-secondary {
-            background: transparent;
-            color: #a1a1aa;
-            border: 1px solid #27272a;
-        }
+		.button {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			min-height: 44px;
+			padding: 0 18px;
+			border: 1px solid var(--border);
+			border-radius: 7px;
+			color: var(--text);
+			background: rgba(255, 255, 255, 0.03);
+			font-size: 14px;
+			font-weight: 650;
+			text-decoration: none;
+			transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+		}
 
-        .btn-secondary:hover {
-            border-color: #3f3f46;
-            color: #fafafa;
-        }
+		.button:hover {
+			transform: translateY(-1px);
+			border-color: rgba(255, 255, 255, 0.28);
+			background: rgba(255, 255, 255, 0.06);
+		}
 
-        .section {
-            padding: 80px 0;
-        }
+		.button.primary {
+			border-color: #f5f5f6;
+			background: #f5f5f6;
+			color: #09090b;
+		}
 
-        .section-header {
-            margin-bottom: 4rem;
-        }
+		.product-panel {
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 14px;
+			background: linear-gradient(180deg, rgba(24, 24, 29, 0.92), rgba(14, 14, 18, 0.92));
+			box-shadow: var(--shadow);
+			overflow: hidden;
+		}
 
-        .section h2 {
-            font-size: 2rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            color: #fafafa;
-        }
+		.panel-bar {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			min-height: 52px;
+			padding: 0 18px;
+			border-bottom: 1px solid var(--border);
+			color: var(--quiet);
+			font-size: 12px;
+			font-weight: 650;
+		}
 
-        .section-subtitle {
-            font-size: 1.125rem;
-            color: #a1a1aa;
-            max-width: 600px;
-        }
+		.panel-dots {
+			display: flex;
+			gap: 6px;
+		}
 
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 2rem;
-        }
+		.panel-dots span {
+			width: 7px;
+			height: 7px;
+			border-radius: 999px;
+			background: #3a3a43;
+		}
 
-        .feature-card {
-            background: #18181b;
-            border: 1px solid #27272a;
-            border-radius: 8px;
-            padding: 2rem;
-            transition: border-color 0.2s;
-        }
+		.file-list {
+			display: grid;
+			gap: 1px;
+			background: var(--border);
+		}
 
-        .feature-card:hover {
-            border-color: #3f3f46;
-        }
+		.file-row {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			align-items: center;
+			gap: 16px;
+			min-height: 76px;
+			padding: 16px 18px;
+			background: rgba(12, 12, 15, 0.96);
+		}
 
-        .feature-icon {
-            font-size: 2rem;
-            margin-bottom: 1rem;
-        }
+		.file-name {
+			min-width: 0;
+			overflow: hidden;
+			color: var(--text);
+			font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+			font-size: 13px;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
 
-        .feature-card h3 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 0.75rem;
-            color: #fafafa;
-        }
+		.file-meta {
+			margin-top: 4px;
+			color: var(--quiet);
+			font-size: 12px;
+		}
 
-        .feature-card p {
-            color: #a1a1aa;
-            font-size: 14px;
-            line-height: 1.5;
-        }
+		.badge {
+			display: inline-flex;
+			align-items: center;
+			justify-self: end;
+			min-height: 28px;
+			padding: 0 10px;
+			border-radius: 999px;
+			font-size: 12px;
+			font-weight: 720;
+			white-space: nowrap;
+		}
 
-        .demo-section {
-            background: #18181b;
-            border: 1px solid #27272a;
-            border-radius: 12px;
-            padding: 3rem;
-            margin: 4rem 0;
-        }
+		.badge.offer {
+			background: rgba(56, 169, 255, 0.14);
+			color: #8fd0ff;
+		}
 
-        .demo-content {
-            text-align: center;
-        }
+		.badge.invoice {
+			background: rgba(52, 211, 153, 0.13);
+			color: #79e6bd;
+		}
 
-        .demo-content h3 {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-bottom: 2rem;
-            color: #fafafa;
-        }
+		.badge.delivery {
+			background: rgba(244, 179, 80, 0.14);
+			color: #ffd18a;
+		}
 
-        .pattern-examples {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            max-width: 800px;
-            margin: 0 auto;
-        }
+		.share-action {
+			margin: 18px;
+			padding: 18px;
+			border: 1px solid rgba(56, 169, 255, 0.26);
+			border-radius: 10px;
+			background: rgba(56, 169, 255, 0.07);
+		}
 
-        .pattern-example {
-            background: #0a0a0b;
-            border: 1px solid #27272a;
-            border-radius: 6px;
-            padding: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-family: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
-            font-size: 13px;
-        }
+		.share-action strong {
+			display: block;
+			margin-bottom: 12px;
+			font-size: 14px;
+		}
 
-        .pattern-example code {
-            color: #a1a1aa;
-        }
+		.share-action .button {
+			min-height: 40px;
+			border-color: rgba(56, 169, 255, 0.7);
+			background: var(--blue);
+			color: #06111a;
+		}
 
-        .badge {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+		.section {
+			padding: 84px 0;
+			border-top: 1px solid rgba(255, 255, 255, 0.06);
+		}
 
-        .badge-invoice { background: #1e40af; color: white; }
-        .badge-offer { background: #16a34a; color: white; }
-        .badge-delivery { background: #ca8a04; color: white; }
-        .badge-reminder { background: #dc2626; color: white; }
+		.section-heading {
+			display: grid;
+			grid-template-columns: minmax(220px, 0.45fr) minmax(0, 0.55fr);
+			gap: 48px;
+			align-items: start;
+			margin-bottom: 36px;
+		}
 
-        .installation-section {
-            background: #18181b;
-            border: 1px solid #27272a;
-            border-radius: 12px;
-            padding: 3rem;
-            margin: 2rem 0;
-        }
+		h2 {
+			color: var(--text);
+			font-size: clamp(2rem, 4vw, 3.2rem);
+			font-weight: 740;
+			letter-spacing: 0;
+			line-height: 1.06;
+		}
 
-        .installation-section h3 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 1.5rem;
-            color: #fafafa;
-        }
+		.section-heading p {
+			color: var(--muted);
+			font-size: 17px;
+			line-height: 1.7;
+		}
 
-        .installation-section pre {
-            background: #0a0a0b;
-            border: 1px solid #27272a;
-            border-radius: 6px;
-            padding: 1.5rem;
-            overflow-x: auto;
-            margin: 1rem 0;
-            font-family: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
-            font-size: 14px;
-            line-height: 1.5;
-        }
+		.feature-grid {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			gap: 14px;
+		}
 
-        .installation-section code {
-            color: #a1a1aa;
-        }
+		.feature {
+			min-height: 210px;
+			padding: 22px;
+			border: 1px solid var(--border);
+			border-radius: 10px;
+			background: rgba(18, 18, 22, 0.72);
+		}
 
-        .installation-section ul {
-            list-style: none;
-            padding-left: 0;
-        }
+		.feature code,
+		.code-card code {
+			color: #d4d4d8;
+			font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+			font-size: 0.95em;
+		}
 
-        .installation-section li {
-            padding: 0.5rem 0;
-            color: #a1a1aa;
-            position: relative;
-            padding-left: 1.5rem;
-        }
+		.feature h3 {
+			margin-bottom: 12px;
+			color: var(--text);
+			font-size: 18px;
+			font-weight: 700;
+		}
 
-        .installation-section li::before {
-            content: "→";
-            position: absolute;
-            left: 0;
-            color: #71717a;
-        }
+		.feature p {
+			color: var(--muted);
+			font-size: 14px;
+			line-height: 1.65;
+		}
 
-        .tech-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
-            margin-top: 2rem;
-        }
+		.rule-layout {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) minmax(280px, 0.58fr);
+			gap: 18px;
+			align-items: stretch;
+		}
 
-        .tech-item {
-            background: #18181b;
-            border: 1px solid #27272a;
-            border-radius: 6px;
-            padding: 1.5rem;
-            text-align: center;
-        }
+		.code-card,
+		.notes-card {
+			border: 1px solid var(--border);
+			border-radius: 10px;
+			background: var(--surface);
+		}
 
-        .tech-item h4 {
-            color: #fafafa;
-            font-size: 1rem;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-        }
+		pre {
+			overflow-x: auto;
+			padding: 24px;
+			color: #d4d4d8;
+			font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+			font-size: 13px;
+			line-height: 1.7;
+		}
 
-        .tech-item p {
-            color: #71717a;
-            font-size: 14px;
-        }
+		.notes-card {
+			padding: 24px;
+		}
 
-        footer {
-            background: #18181b;
-            border-top: 1px solid #27272a;
-            padding: 3rem 0;
-            margin-top: 5rem;
-        }
+		.notes-card ul {
+			display: grid;
+			gap: 14px;
+			list-style: none;
+		}
 
-        .footer-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 2rem;
-        }
+		.notes-card li {
+			color: var(--muted);
+			font-size: 14px;
+		}
 
-        .footer-links {
-            display: flex;
-            gap: 2rem;
-        }
+		.notes-card strong {
+			display: block;
+			color: var(--text);
+			font-size: 14px;
+		}
 
-        .footer-links a {
-            color: #71717a;
-            text-decoration: none;
-            font-size: 14px;
-            transition: color 0.2s;
-        }
+		.install {
+			display: grid;
+			gap: 18px;
+		}
 
-        .footer-links a:hover {
-            color: #a1a1aa;
-        }
+		.install-row {
+			display: grid;
+			grid-template-columns: 180px minmax(0, 1fr);
+			gap: 24px;
+			padding: 22px 0;
+			border-top: 1px solid var(--border);
+		}
 
-        .footer-logo {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #a1a1aa;
-            font-size: 14px;
-        }
+		.install-row:first-child {
+			border-top: 0;
+		}
 
-        .footer-logo img {
-            width: 20px;
-            height: 20px;
-            opacity: 0.7;
-        }
+		.install-row h3 {
+			color: var(--text);
+			font-size: 15px;
+			font-weight: 720;
+		}
 
-        @media (max-width: 768px) {
-            .hero-content h1 {
-                font-size: 2.5rem;
-            }
+		.install-row p,
+		.install-row li {
+			color: var(--muted);
+			font-size: 14px;
+		}
 
-            .nav-links {
-                display: none;
-            }
+		.install-row ul {
+			display: grid;
+			gap: 6px;
+			list-style: none;
+		}
 
-            .pattern-examples {
-                grid-template-columns: 1fr;
-            }
+		.footer {
+			padding: 42px 0;
+			border-top: 1px solid rgba(255, 255, 255, 0.08);
+			color: var(--quiet);
+		}
 
-            .footer-content {
-                flex-direction: column;
-                text-align: center;
-            }
-        }
-    </style>
+		.footer-inner {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 24px;
+			font-size: 13px;
+		}
+
+		.footer-links {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 18px;
+		}
+
+		.footer a {
+			color: var(--muted);
+			text-decoration: none;
+		}
+
+		.footer a:hover {
+			color: var(--text);
+		}
+
+		@media (max-width: 860px) {
+			.container {
+				width: min(100% - 32px, 1060px);
+			}
+
+			.nav-links {
+				display: none;
+			}
+
+			.hero {
+				min-height: auto;
+				padding: 72px 0 48px;
+			}
+
+			.hero-grid,
+			.section-heading,
+			.rule-layout,
+			.install-row {
+				grid-template-columns: 1fr;
+				gap: 26px;
+			}
+
+			.feature-grid {
+				grid-template-columns: 1fr;
+			}
+
+			.footer-inner {
+				align-items: flex-start;
+				flex-direction: column;
+			}
+		}
+
+		@media (max-width: 520px) {
+			.file-row {
+				grid-template-columns: 1fr;
+			}
+
+			.badge {
+				justify-self: start;
+			}
+
+			pre {
+				padding: 18px;
+				font-size: 12px;
+			}
+		}
+	</style>
 </head>
 <body>
-    <header>
-        <nav class="container">
-            <div class="logo">
-                <img src="nextinject.png" alt="NextInject">
-                NextInject
-            </div>
-            <div class="nav-links">
-                <a href="#features">Features</a>
-                <a href="#install">Install</a>
-                <a href="#docs">Docs</a>
-                <a href="https://github.com/Yxanu/nextinject">GitHub ↗</a>
-            </div>
-        </nav>
-    </header>
+	<header class="site-header">
+		<nav class="container nav" aria-label="Primary navigation">
+			<a class="brand" href="#">
+				<img src="nextinject.png" alt="">
+				<span>NextInject</span>
+			</a>
+			<div class="nav-links">
+				<a href="#features">Features</a>
+				<a href="#rules">Rules</a>
+				<a href="#install">Install</a>
+				<a href="https://github.com/Yxanu/nextinject" rel="noopener">GitHub</a>
+			</div>
+		</nav>
+	</header>
 
-    <section class="hero">
-        <div class="container">
-            <div class="hero-content">
-                <h1>NextInject</h1>
-                <p>Pattern-based element injection for NextCloud file management. Automatically add visual badges to files based on configurable filename patterns.</p>
-                <div class="cta-buttons">
-                    <a href="https://github.com/Yxanu/nextinject/releases" class="btn btn-primary">
-                        <span>↓</span> Download
-                    </a>
-                    <a href="#install" class="btn btn-secondary">Get Started</a>
-                </div>
-            </div>
-        </div>
-    </section>
+	<main>
+		<section class="hero">
+			<div class="container hero-grid">
+				<div>
+					<h1>Typed file markers for Nextcloud.</h1>
+					<p class="hero-copy">NextInject adds compact badges to matching files and can show safe, rule-based header actions inside public shares. It is admin-only, system-wide, and built for NC31 through NC33.</p>
+					<div class="actions">
+						<a class="button primary" href="https://github.com/Yxanu/nextinject" rel="noopener">View on GitHub</a>
+						<a class="button" href="https://github.com/Yxanu/nextinject/blob/main/README.en.md" rel="noopener">Read docs</a>
+					</div>
+				</div>
 
-    <section class="demo-section">
-        <div class="container">
-            <div class="demo-content">
-                <h3>Pattern Matching in Action</h3>
-                <div class="pattern-examples">
-                    <div class="pattern-example">
-                        <code>invoice_RE_2024.pdf</code>
-                        <span class="badge badge-invoice">Invoice</span>
-                    </div>
-                    <div class="pattern-example">
-                        <code>offer_AN_client.pdf</code>
-                        <span class="badge badge-offer">Offer</span>
-                    </div>
-                    <div class="pattern-example">
-                        <code>delivery_LI_order.pdf</code>
-                        <span class="badge badge-delivery">Delivery</span>
-                    </div>
-                    <div class="pattern-example">
-                        <code>reminder_MA_urgent.pdf</code>
-                        <span class="badge badge-reminder">Reminder</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+				<div class="product-panel" aria-label="NextInject preview">
+					<div class="panel-bar">
+						<span>Public share preview</span>
+						<div class="panel-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+					</div>
+					<div class="file-list">
+						<div class="file-row">
+							<div>
+								<div class="file-name">osite Network GmbH_AN-251218-02.pdf</div>
+								<div class="file-meta">matched by `_AN`</div>
+							</div>
+							<span class="badge offer">Offer</span>
+						</div>
+						<div class="file-row">
+							<div>
+								<div class="file-name">rechnung_RE-2026-04.pdf</div>
+								<div class="file-meta">matched by `_RE`</div>
+							</div>
+							<span class="badge invoice">Invoice</span>
+						</div>
+						<div class="file-row">
+							<div>
+								<div class="file-name">delivery_LI-final.pdf</div>
+								<div class="file-meta">matched by `_LI`</div>
+							</div>
+							<span class="badge delivery">Delivery</span>
+						</div>
+					</div>
+					<div class="share-action">
+						<strong>Header action from the offer rule</strong>
+						<a class="button" href="https://github.com/Yxanu/nextinject" rel="noopener">Confirm offer</a>
+					</div>
+				</div>
+			</div>
+		</section>
 
-    <section id="features" class="section">
-        <div class="container">
-            <div class="section-header">
-                <h2>Core Features</h2>
-                <p class="section-subtitle">Everything you need for intelligent file organization and visual management in NextCloud.</p>
-            </div>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">⚡</div>
-                    <h3>Pattern Matching</h3>
-                    <p>Define custom filename patterns that automatically trigger visual badges. Supports regex and simple text matching.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🎨</div>
-                    <h3>Custom Templates</h3>
-                    <p>Create HTML templates with CSS styling. Full control over appearance and behavior of injected elements.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">⚙️</div>
-                    <h3>User Configuration</h3>
-                    <p>Intuitive settings panel for managing patterns, templates, and injection rules. No coding required.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📡</div>
-                    <h3>Real-time Injection</h3>
-                    <p>Elements are injected dynamically as you browse. Works with lazy loading and infinite scroll.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🔧</div>
-                    <h3>Debug Interface</h3>
-                    <p>Built-in debugging tools accessible via browser console. Monitor injection stats and troubleshoot issues.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🔌</div>
-                    <h3>API Integration</h3>
-                    <p>RESTful endpoints for programmatic configuration. Integrate with external tools and automation scripts.</p>
-                </div>
-            </div>
-        </div>
-    </section>
+		<section class="section" id="features">
+			<div class="container">
+				<div class="section-heading">
+					<h2>Small surface, clear behavior.</h2>
+					<p>NextInject intentionally avoids arbitrary HTML injection. Admins define typed JSON rules, choose badge presets, and enable public-share actions only where they are needed.</p>
+				</div>
+				<div class="feature-grid">
+					<article class="feature">
+						<h3>Files and shares</h3>
+						<p>Rules can match file names, share titles, folder paths, and public-share context. Matching items get a visual badge without changing the stored file.</p>
+					</article>
+					<article class="feature">
+						<h3>Public actions</h3>
+						<p>Offer and invoice flows can expose a controlled header button, such as <code>Confirm offer</code>, with placeholders for file and context labels.</p>
+					</article>
+					<article class="feature">
+						<h3>Admin native</h3>
+						<p>The configuration lives under <code>Settings -> Administration -> NextInject</code>, with import, export, defaults, and typed validation.</p>
+					</article>
+				</div>
+			</div>
+		</section>
 
-    <section class="section">
-        <div class="container">
-            <div class="section-header">
-                <h2>Technical Stack</h2>
-                <p class="section-subtitle">Built with modern web technologies for reliability and performance.</p>
-            </div>
-            <div class="tech-grid">
-                <div class="tech-item">
-                    <h4>Frontend</h4>
-                    <p>Vanilla JavaScript, CSS3, MutationObserver API</p>
-                </div>
-                <div class="tech-item">
-                    <h4>Backend</h4>
-                    <p>PHP 7.4+, NextCloud App Framework</p>
-                </div>
-                <div class="tech-item">
-                    <h4>API</h4>
-                    <p>RESTful JSON endpoints, CSRF protection</p>
-                </div>
-                <div class="tech-item">
-                    <h4>Storage</h4>
-                    <p>System-wide Nextcloud app config, typed JSON rules</p>
-                </div>
-            </div>
-        </div>
-    </section>
+		<section class="section" id="rules">
+			<div class="container">
+				<div class="section-heading">
+					<h2>Rules are plain JSON.</h2>
+					<p>Configuration remains portable and reviewable. The frontend receives only the runtime-safe subset required for matching and rendering.</p>
+				</div>
+				<div class="rule-layout">
+					<div class="code-card">
+						<pre><code>{
+  "id": "angebot",
+  "label": "Offer",
+  "matcher": "_AN",
+  "surfaces": ["files", "public"],
+  "badgePreset": "angebot",
+  "headerAction": {
+    "enabled": true,
+    "label": "Confirm offer",
+    "url": "https://example.com/confirm?file={fileName}",
+    "variant": "primary"
+  },
+  "enabled": true,
+  "priority": 300
+}</code></pre>
+					</div>
+					<div class="notes-card">
+						<ul>
+							<li><strong>Built-in presets</strong> Offer, invoice, delivery, order, protocol, and notice markers.</li>
+							<li><strong>Safe migration</strong> Legacy `nextinject` and `elementinjector` settings are mapped to typed rules.</li>
+							<li><strong>Theme compatibility</strong> Existing share styles such as <code>cta_AN</code>, <code>AN_open</code>, and <code>gimmick_active</code> are still supported.</li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</section>
 
-    <section id="install" class="section">
-        <div class="container">
-            <div class="section-header">
-                <h2>Installation</h2>
-                <p class="section-subtitle">Get NextInject running on your NextCloud instance in minutes.</p>
-            </div>
-
-            <div class="installation-section">
-                <h3>Requirements</h3>
-                <ul>
-                    <li>Nextcloud 31 or 32</li>
-                    <li>PHP 7.4 or higher</li>
-                    <li>Web browser with JavaScript enabled</li>
-                    <li>Write permissions to NextCloud apps directory</li>
-                </ul>
-            </div>
-
-            <div class="installation-section">
-                <h3>Quick Install</h3>
-                <pre><code># Navigate to NextCloud apps directory
-cd /var/www/nextcloud/apps/
-
-# Clone repository
+		<section class="section" id="install">
+			<div class="container">
+				<div class="section-heading">
+					<h2>Install it like a normal Nextcloud app.</h2>
+					<p>The repository includes built assets for the app runtime and admin UI, so production installs do not need a server-side Node build.</p>
+				</div>
+				<div class="install">
+					<div class="install-row">
+						<h3>Requirements</h3>
+						<ul>
+							<li>Nextcloud 31, 32, or 33</li>
+							<li>Admin access to the target instance</li>
+							<li>Write access to the Nextcloud apps directory</li>
+						</ul>
+					</div>
+					<div class="install-row">
+						<h3>Quick install</h3>
+						<div class="code-card">
+							<pre><code>cd /var/www/nextcloud/apps
 git clone https://github.com/Yxanu/nextinject.git nextinject
+chown -R www-data:www-data nextinject
+sudo -u www-data php occ app:enable nextinject
+sudo -u www-data php occ upgrade</code></pre>
+						</div>
+					</div>
+					<div class="install-row">
+						<h3>Configure</h3>
+						<p>Open <code>Settings -> Administration -> NextInject</code>, review the default rules, enable the public-share action where needed, then verify a matching file such as <code>_AN.pdf</code>.</p>
+					</div>
+				</div>
+			</div>
+		</section>
+	</main>
 
-# Set permissions
-chown -R www-data:www-data nextinject/
-
-# Enable app
-sudo -u www-data php occ app:enable nextinject</code></pre>
-            </div>
-
-            <div class="installation-section">
-                <h3>Verification</h3>
-                <pre><code># Check app status
-sudo -u www-data php occ app:list | grep nextinject
-
-# Test frontend config endpoint
-curl -s "https://your-nextcloud.com/apps/nextinject/api/v1/frontend/config"</code></pre>
-            </div>
-        </div>
-    </section>
-
-    <section id="docs" class="section">
-        <div class="container">
-            <div class="section-header">
-                <h2>Documentation</h2>
-                <p class="section-subtitle">Comprehensive guides and references for users and developers.</p>
-            </div>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">🚀</div>
-                    <h3>Quick Start</h3>
-                    <p>Get up and running in 5 minutes. Basic configuration and first pattern setup.</p>
-                    <a href="README.en.md" class="btn btn-secondary" style="margin-top: 1rem;">Read Guide</a>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📚</div>
-                    <h3>API Reference</h3>
-                    <p>Admin and frontend endpoints for typed rule management and runtime injection.</p>
-                    <a href="README.en.md#api-documentation" class="btn btn-secondary" style="margin-top: 1rem;">View API</a>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🔍</div>
-                    <h3>Troubleshooting</h3>
-                    <p>Common issues, debugging techniques, and performance optimization tips.</p>
-                    <a href="README.en.md#troubleshooting" class="btn btn-secondary" style="margin-top: 1rem;">Debug Help</a>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <footer>
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-logo">
-                    <img src="nextinject.png" alt="NextInject">
-                    NextInject v2.0.0
-                </div>
-                <div class="footer-links">
-                    <a href="https://github.com/Yxanu/nextinject">Repository</a>
-                    <a href="https://github.com/Yxanu/nextinject/issues">Issues</a>
-                    <a href="https://github.com/Yxanu/nextinject/releases">Releases</a>
-                    <a href="https://tobiassauer.com">Author</a>
-                </div>
-            </div>
-        </div>
-    </footer>
+	<footer class="footer">
+		<div class="container footer-inner">
+			<span>NextInject v2.1.1 - AGPL-3.0-or-later</span>
+			<div class="footer-links">
+				<a href="https://github.com/Yxanu/nextinject" rel="noopener">Repository</a>
+				<a href="https://github.com/Yxanu/nextinject/issues" rel="noopener">Issues</a>
+				<a href="https://github.com/Yxanu/nextinject/releases" rel="noopener">Releases</a>
+			</div>
+		</div>
+	</footer>
 </body>
 </html>
