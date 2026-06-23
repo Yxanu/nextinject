@@ -153,7 +153,12 @@
 		cleanup() {
 			document.querySelectorAll(`[data-nextinject-owner="${this.instanceId}"]`).forEach((node) => node.remove());
 			document.querySelectorAll('.nextinject-runtime-match').forEach((node) => node.classList.remove('nextinject-runtime-match'));
-			document.body?.classList.remove('nextinject-offer-open', 'nextinject-invoice-open');
+			document.body?.classList.remove('AN_open', 'RE_open', 'nextinject-offer-open', 'nextinject-invoice-open');
+			document.querySelector('#header')?.classList.remove('gimmick_active');
+			const provenExpert = document.querySelector('#ProvenExpert_widgetbar_container');
+			if (provenExpert instanceof HTMLElement) {
+				provenExpert.style.display = '';
+			}
 		}
 
 		getContextLabel() {
@@ -344,6 +349,12 @@
 				return;
 			}
 
+			const presetKey = activeRule.badge?.key || activeRule.badgePreset || '';
+			if (presetKey === 'angebot' || presetKey === 'rechnung') {
+				this.injectLegacyThemeCta(headerHost, activeRule, publicContext);
+				return;
+			}
+
 			const wrapper = document.createElement('div');
 			wrapper.className = 'nextinject-public-actions';
 			wrapper.dataset.nextinjectOwner = this.instanceId;
@@ -367,6 +378,37 @@
 			}
 		}
 
+		injectLegacyThemeCta(headerHost, activeRule, publicContext) {
+			const presetKey = activeRule.badge?.key || activeRule.badgePreset || '';
+			const insertBeforeTarget = headerHost.querySelector('#header-primary-action')
+				|| headerHost.querySelector('#public-page-menu')
+				|| null;
+			const context = {
+				contextLabel: publicContext.contextLabel,
+				fileName: publicContext.activeViewerTitle || publicContext.dir,
+			};
+			const action = activeRule.headerAction;
+			const link = document.createElement('a');
+			link.dataset.nextinjectOwner = this.instanceId;
+			link.href = this.resolveActionUrl(action.url, context);
+			link.target = '_blank';
+			link.rel = 'noreferrer noopener';
+
+			if (presetKey === 'angebot') {
+				link.className = 'cta_AN box';
+				link.innerHTML = `<i></i><span>${this.escape(action.label || 'Angebot bestätigen')}</span>`;
+			} else {
+				link.className = 'cta_RE box zahlung';
+				link.innerHTML = `<i></i><span>${this.escape(action.label || 'Zahlung mitteilen')}</span>`;
+			}
+
+			if (insertBeforeTarget) {
+				headerHost.insertBefore(link, insertBeforeTarget);
+			} else {
+				headerHost.appendChild(link);
+			}
+		}
+
 		applyPublicThemeState(activeRule, publicContext) {
 			if (!activeRule) {
 				return;
@@ -374,13 +416,20 @@
 
 			const presetKey = activeRule.badge?.key || activeRule.badgePreset || '';
 			const body = document.body;
+			const header = document.querySelector('#header');
+			const provenExpert = document.querySelector('#ProvenExpert_widgetbar_container');
 
 			if (presetKey === 'angebot') {
-				body?.classList.add('nextinject-offer-open');
+				body?.classList.add('AN_open', 'nextinject-offer-open');
+				header?.classList.add('gimmick_active');
 			}
 
 			if (presetKey === 'rechnung') {
-				body?.classList.add('nextinject-invoice-open');
+				body?.classList.add('RE_open', 'nextinject-invoice-open');
+			}
+
+			if ((presetKey === 'angebot' || presetKey === 'rechnung') && provenExpert instanceof HTMLElement) {
+				provenExpert.style.display = 'block';
 			}
 		}
 
