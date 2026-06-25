@@ -159,8 +159,8 @@ body#body-public a.cta_RE.box {
 
 body#body-public a.cta_AN.box:hover,
 body#body-public a.cta_RE.box:hover {
-	box-shadow: 0 3px 7px rgba(0, 120, 190, 0.12) !important;
-	filter: brightness(1.015);
+	box-shadow: 0 4px 10px rgba(0, 120, 190, 0.14) !important;
+	filter: brightness(1.02);
 	transform: none !important;
 }
 
@@ -168,21 +168,33 @@ body#body-public a.cta_AN.box::before,
 body#body-public a.cta_RE.box::before {
 	content: "" !important;
 	position: absolute !important;
-	inset: -45% auto -45% -28% !important;
-	width: 22% !important;
+	inset: -55% auto -55% -48% !important;
+	width: 38% !important;
 	height: auto !important;
-	background: linear-gradient(105deg, transparent 0%, rgba(255, 255, 255, 0.12) 35%, rgba(255, 255, 255, 0.58) 50%, rgba(255, 255, 255, 0.12) 65%, transparent 100%) !important;
-	opacity: 0.68 !important;
+	border-radius: 999px !important;
+	background: linear-gradient(110deg, transparent 0%, rgba(255, 255, 255, 0.05) 18%, rgba(255, 255, 255, 0.36) 44%, rgba(255, 255, 255, 0.72) 50%, rgba(255, 255, 255, 0.28) 58%, transparent 82%) !important;
+	filter: blur(1.5px) !important;
+	opacity: 0;
 	z-index: 1 !important;
 	pointer-events: none !important;
-	transform: skewX(-20deg) translateX(-260%);
-	animation: nextinject-cta-sheen 3s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
+	transform: skewX(-16deg) translateX(-210%);
+	animation: nextinject-cta-sheen 4.8s cubic-bezier(0.22, 1, 0.36, 1) infinite !important;
 }
 
 body#body-public a.cta_AN.box::after,
 body#body-public a.cta_RE.box::after {
-	display: none !important;
-	animation: none !important;
+	content: "" !important;
+	position: absolute !important;
+	inset: -32% auto -32% -18% !important;
+	width: 10% !important;
+	height: auto !important;
+	border-radius: 999px !important;
+	background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.82) 50%, transparent 100%) !important;
+	opacity: 0;
+	z-index: 1 !important;
+	pointer-events: none !important;
+	transform: skewX(-16deg) translateX(-260%);
+	animation: nextinject-cta-sheen-core 4.8s cubic-bezier(0.22, 1, 0.36, 1) infinite !important;
 }
 
 body#body-public a.cta_AN.box > i,
@@ -194,11 +206,48 @@ body#body-public a.cta_RE.box > span {
 }
 
 @keyframes nextinject-cta-sheen {
-	0%, 38% {
-		transform: skewX(-20deg) translateX(-260%);
+	0%, 54% {
+		opacity: 0;
+		transform: skewX(-16deg) translateX(-210%);
 	}
-	68%, 100% {
-		transform: skewX(-20deg) translateX(780%);
+	58% {
+		opacity: 0.78;
+	}
+	72% {
+		opacity: 0.56;
+		transform: skewX(-16deg) translateX(430%);
+	}
+	78%, 100% {
+		opacity: 0;
+		transform: skewX(-16deg) translateX(520%);
+	}
+}
+
+@keyframes nextinject-cta-sheen-core {
+	0%, 55% {
+		opacity: 0;
+		transform: skewX(-16deg) translateX(-260%);
+	}
+	59% {
+		opacity: 0.86;
+	}
+	71% {
+		opacity: 0.62;
+		transform: skewX(-16deg) translateX(1450%);
+	}
+	77%, 100% {
+		opacity: 0;
+		transform: skewX(-16deg) translateX(1560%);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	body#body-public a.cta_AN.box::before,
+	body#body-public a.cta_AN.box::after,
+	body#body-public a.cta_RE.box::before,
+	body#body-public a.cta_RE.box::after {
+		animation: none !important;
+		opacity: 0 !important;
 	}
 }
 `;
