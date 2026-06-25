@@ -87,8 +87,31 @@
 				return;
 			}
 
-			this.observer = new MutationObserver(() => this.scheduleScan());
+			this.observer = new MutationObserver((mutations) => {
+				if (mutations.some((mutation) => this.isExternalMutation(mutation))) {
+					this.scheduleScan();
+				}
+			});
 			this.observer.observe(target, { childList: true, subtree: true, characterData: true });
+		}
+
+		isExternalMutation(mutation) {
+			if (mutation.type === 'characterData') {
+				return !this.isOwnedMutationNode(mutation.target.parentElement);
+			}
+
+			return [...mutation.addedNodes, ...mutation.removedNodes]
+				.some((node) => !this.isOwnedMutationNode(node));
+		}
+
+		isOwnedMutationNode(node) {
+			if (!(node instanceof Element)) {
+				return false;
+			}
+
+			return node.id === 'nextinject-legacy-theme-fixes'
+				|| node.dataset.nextinjectOwner === this.instanceId
+				|| Boolean(node.querySelector?.(`[data-nextinject-owner="${this.instanceId}"], #nextinject-legacy-theme-fixes`));
 		}
 
 		getObserverTarget() {
@@ -129,15 +152,15 @@ body#body-public a.cta_AN.box,
 body#body-public a.cta_RE.box {
 	isolation: isolate !important;
 	overflow: hidden !important;
-	box-shadow: 0 3px 8px rgba(0, 120, 190, 0.14) !important;
+	box-shadow: 0 2px 5px rgba(0, 120, 190, 0.1) !important;
 	transform: none !important;
 	transition: background-color 180ms ease, border-color 180ms ease, filter 180ms ease, box-shadow 180ms ease !important;
 }
 
 body#body-public a.cta_AN.box:hover,
 body#body-public a.cta_RE.box:hover {
-	box-shadow: 0 4px 10px rgba(0, 120, 190, 0.18) !important;
-	filter: brightness(1.03);
+	box-shadow: 0 3px 7px rgba(0, 120, 190, 0.12) !important;
+	filter: brightness(1.015);
 	transform: none !important;
 }
 
@@ -145,15 +168,15 @@ body#body-public a.cta_AN.box::before,
 body#body-public a.cta_RE.box::before {
 	content: "" !important;
 	position: absolute !important;
-	inset: -35% auto -35% -45% !important;
-	width: 42% !important;
+	inset: -45% auto -45% -28% !important;
+	width: 22% !important;
 	height: auto !important;
-	background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.54) 50%, transparent 100%) !important;
-	opacity: 0.72 !important;
+	background: linear-gradient(105deg, transparent 0%, rgba(255, 255, 255, 0.12) 35%, rgba(255, 255, 255, 0.58) 50%, rgba(255, 255, 255, 0.12) 65%, transparent 100%) !important;
+	opacity: 0.68 !important;
 	z-index: 1 !important;
 	pointer-events: none !important;
-	transform: skewX(-18deg) translateX(-160%) !important;
-	animation: nextinject-cta-sheen 3.2s ease-in-out infinite !important;
+	transform: skewX(-20deg) translateX(-260%);
+	animation: nextinject-cta-sheen 3s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
 }
 
 body#body-public a.cta_AN.box::after,
@@ -171,11 +194,11 @@ body#body-public a.cta_RE.box > span {
 }
 
 @keyframes nextinject-cta-sheen {
-	0%, 56% {
-		transform: skewX(-18deg) translateX(-160%);
+	0%, 38% {
+		transform: skewX(-20deg) translateX(-260%);
 	}
-	100% {
-		transform: skewX(-18deg) translateX(420%);
+	68%, 100% {
+		transform: skewX(-20deg) translateX(780%);
 	}
 }
 `;
@@ -217,7 +240,12 @@ body#body-public a.cta_RE.box > span {
 		}
 
 		cleanup() {
-			document.querySelectorAll(`[data-nextinject-owner="${this.instanceId}"]`).forEach((node) => node.remove());
+			document.querySelectorAll(`[data-nextinject-owner="${this.instanceId}"]`).forEach((node) => {
+				if (this.surface === 'public' && this.isPublicActionNode(node)) {
+					return;
+				}
+				node.remove();
+			});
 			document.querySelectorAll('.nextinject-runtime-match').forEach((node) => node.classList.remove('nextinject-runtime-match'));
 			document.body?.classList.remove('AN_open', 'RE_open', 'nextinject-offer-open', 'nextinject-invoice-open');
 			document.querySelector('#header')?.classList.remove('gimmick_active');
@@ -225,6 +253,29 @@ body#body-public a.cta_RE.box > span {
 			if (provenExpert instanceof HTMLElement) {
 				provenExpert.style.display = '';
 			}
+		}
+
+		isPublicActionNode(node) {
+			return node instanceof HTMLElement
+				&& (
+					node.classList.contains('nextinject-public-actions')
+					|| node.matches('a.cta_AN.box, a.cta_RE.box')
+				);
+		}
+
+		cleanupPublicActions(keepKind = null) {
+			document.querySelectorAll([
+				`.nextinject-public-actions[data-nextinject-owner="${this.instanceId}"]`,
+				`a.cta_AN.box[data-nextinject-owner="${this.instanceId}"]`,
+				`a.cta_RE.box[data-nextinject-owner="${this.instanceId}"]`,
+			].join(', ')).forEach((node) => {
+				const isModern = node.classList.contains('nextinject-public-actions');
+				const isLegacy = node.matches('a.cta_AN.box, a.cta_RE.box');
+				if ((keepKind === 'modern' && isModern) || (keepKind === 'legacy' && isLegacy)) {
+					return;
+				}
+				node.remove();
+			});
 		}
 
 		getContextLabel() {
@@ -412,20 +463,25 @@ body#body-public a.cta_RE.box > span {
 				|| document.body;
 
 			if (!activeRule?.headerAction) {
+				this.cleanupPublicActions();
 				return;
 			}
 
 			const presetKey = activeRule.badge?.key || activeRule.badgePreset || '';
 			if (presetKey === 'angebot' || presetKey === 'rechnung') {
+				this.cleanupPublicActions('legacy');
 				this.injectLegacyThemeCta(headerHost, activeRule, publicContext);
 				return;
 			}
 
-			const wrapper = document.createElement('div');
+			this.cleanupPublicActions('modern');
+
+			const wrapper = document.querySelector(`.nextinject-public-actions[data-nextinject-owner="${this.instanceId}"]`)
+				|| document.createElement('div');
 			wrapper.className = 'nextinject-public-actions';
 			wrapper.dataset.nextinjectOwner = this.instanceId;
 
-			const link = document.createElement('a');
+			const link = wrapper.querySelector('a.nextinject-public-action') || document.createElement('a');
 			link.className = `nextinject-public-action nextinject-public-action--${activeRule.headerAction.variant || 'secondary'}`;
 			link.href = this.resolveActionUrl(activeRule.headerAction.url, {
 				contextLabel,
@@ -434,12 +490,14 @@ body#body-public a.cta_RE.box > span {
 			link.target = '_blank';
 			link.rel = 'noreferrer noopener';
 			link.textContent = activeRule.headerAction.label;
-			wrapper.appendChild(link);
+			if (!link.parentElement) {
+				wrapper.appendChild(link);
+			}
 
 			const publicPageMenu = headerHost.querySelector('#public-page-menu');
-			if (publicPageMenu) {
+			if (publicPageMenu && wrapper.nextSibling !== publicPageMenu) {
 				headerHost.insertBefore(wrapper, publicPageMenu);
-			} else {
+			} else if (!wrapper.parentElement) {
 				headerHost.appendChild(wrapper);
 			}
 		}
@@ -454,7 +512,14 @@ body#body-public a.cta_RE.box > span {
 				fileName: publicContext.activeViewerTitle || publicContext.dir,
 			};
 			const action = activeRule.headerAction;
-			const link = document.createElement('a');
+			const existingLinks = Array.from(document.querySelectorAll([
+				`a.cta_AN.box[data-nextinject-owner="${this.instanceId}"]`,
+				`a.cta_RE.box[data-nextinject-owner="${this.instanceId}"]`,
+			].join(', ')));
+			const link = existingLinks.find((node) => node.parentElement === headerHost)
+				|| existingLinks[0]
+				|| document.createElement('a');
+			existingLinks.filter((node) => node !== link).forEach((node) => node.remove());
 			link.dataset.nextinjectOwner = this.instanceId;
 			link.href = this.resolveActionUrl(action.url, context);
 			link.target = '_blank';
@@ -462,15 +527,24 @@ body#body-public a.cta_RE.box > span {
 
 			if (presetKey === 'angebot') {
 				link.className = 'cta_AN box';
-				link.innerHTML = `<i></i><span>${this.escape(action.label || 'Angebot bestätigen')}</span>`;
+				const markup = `<i></i><span>${this.escape(action.label || 'Angebot bestätigen')}</span>`;
+				if (link.innerHTML !== markup) {
+					link.innerHTML = markup;
+				}
 			} else {
 				link.className = 'cta_RE box zahlung';
-				link.innerHTML = `<i></i><span>${this.escape(action.label || 'Zahlung mitteilen')}</span>`;
+				const markup = `<i></i><span>${this.escape(action.label || 'Zahlung mitteilen')}</span>`;
+				if (link.innerHTML !== markup) {
+					link.innerHTML = markup;
+				}
 			}
 
-			if (insertBeforeTarget) {
+			const linkIsBeforeTarget = insertBeforeTarget
+				&& link.parentElement === headerHost
+				&& Boolean(link.compareDocumentPosition(insertBeforeTarget) & Node.DOCUMENT_POSITION_FOLLOWING);
+			if (insertBeforeTarget && !linkIsBeforeTarget) {
 				headerHost.insertBefore(link, insertBeforeTarget);
-			} else {
+			} else if (!insertBeforeTarget && link.parentElement !== headerHost) {
 				headerHost.appendChild(link);
 			}
 		}
