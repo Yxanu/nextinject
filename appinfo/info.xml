@@ -9,7 +9,7 @@
 		mit typisierten Badges und Public-Share-Aktionen. Administratoren pflegen
 		die Regeln zentral, ohne freies HTML oder Theme-Hardcoding.
 	]]></description>
-	<version>2.1.1</version>
+	<version>2.1.2</version>
 	<licence>agpl</licence>
 	<author mail="git@yxanu.com" homepage="https://tobiassauer.com">Tobias Sauer</author>
 	<namespace>NextInject</namespace>

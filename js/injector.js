@@ -73,6 +73,7 @@
 		}
 
 		mount() {
+			this.ensureLegacyThemeStyles();
 			this.scheduleScan();
 			this.setupObserver();
 			this.patchHistory();
@@ -114,6 +115,71 @@
 				originalReplaceState.apply(history, args);
 				trigger();
 			};
+		}
+
+		ensureLegacyThemeStyles() {
+			if (this.surface !== 'public' || document.querySelector('#nextinject-legacy-theme-fixes')) {
+				return;
+			}
+
+			const style = document.createElement('style');
+			style.id = 'nextinject-legacy-theme-fixes';
+			style.textContent = `
+body#body-public a.cta_AN.box,
+body#body-public a.cta_RE.box {
+	isolation: isolate !important;
+	overflow: hidden !important;
+	box-shadow: 0 3px 8px rgba(0, 120, 190, 0.14) !important;
+	transform: none !important;
+	transition: background-color 180ms ease, border-color 180ms ease, filter 180ms ease, box-shadow 180ms ease !important;
+}
+
+body#body-public a.cta_AN.box:hover,
+body#body-public a.cta_RE.box:hover {
+	box-shadow: 0 4px 10px rgba(0, 120, 190, 0.18) !important;
+	filter: brightness(1.03);
+	transform: none !important;
+}
+
+body#body-public a.cta_AN.box::before,
+body#body-public a.cta_RE.box::before {
+	content: "" !important;
+	position: absolute !important;
+	inset: -35% auto -35% -45% !important;
+	width: 42% !important;
+	height: auto !important;
+	background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.54) 50%, transparent 100%) !important;
+	opacity: 0.72 !important;
+	z-index: 1 !important;
+	pointer-events: none !important;
+	transform: skewX(-18deg) translateX(-160%) !important;
+	animation: nextinject-cta-sheen 3.2s ease-in-out infinite !important;
+}
+
+body#body-public a.cta_AN.box::after,
+body#body-public a.cta_RE.box::after {
+	display: none !important;
+	animation: none !important;
+}
+
+body#body-public a.cta_AN.box > i,
+body#body-public a.cta_AN.box > span,
+body#body-public a.cta_RE.box > i,
+body#body-public a.cta_RE.box > span {
+	position: relative !important;
+	z-index: 2 !important;
+}
+
+@keyframes nextinject-cta-sheen {
+	0%, 56% {
+		transform: skewX(-18deg) translateX(-160%);
+	}
+	100% {
+		transform: skewX(-18deg) translateX(420%);
+	}
+}
+`;
+			document.head.appendChild(style);
 		}
 
 		scheduleScan() {
