@@ -284,7 +284,7 @@ body#body-public a.cta_RE.box > span {
 				) || null;
 
 				this.applyPublicThemeState(activePublicRule, publicContext);
-				this.injectPublicActions(contextLabel, activePublicRule, publicContext);
+				this.injectPublicActions(publicContext.contextLabel, activePublicRule, publicContext);
 			}
 		}
 
@@ -328,6 +328,16 @@ body#body-public a.cta_RE.box > span {
 		}
 
 		getContextLabel() {
+			// Files replaces document.title when its viewer closes. The server-rendered
+			// share name stays stable and must not disappear with that transient title.
+			if (this.surface === 'public') {
+				const shareName = document.querySelector('.kunde-name')?.textContent?.trim()
+					|| document.querySelector('meta[property="og:title"]')?.getAttribute('content')?.trim();
+				if (shareName) {
+					return shareName;
+				}
+			}
+
 			const candidates = [
 				document.querySelector('#header .header-title'),
 				document.querySelector('#header .header-appname'),
@@ -428,30 +438,29 @@ body#body-public a.cta_RE.box > span {
 
 		getPublicContext(contextLabel) {
 			const params = new URLSearchParams(window.location.search);
-			const dir = decodeURIComponent(params.get('dir') || '');
-			const activeViewerTitle = [
-				document.querySelector('#viewer .modal-header__name'),
-				document.querySelector('#viewer h2'),
-				document.querySelector('.viewer__title'),
-			].map((node) => node?.textContent?.trim()).find(Boolean) || '';
-
-			const breadcrumbTexts = Array.from(document.querySelectorAll('.breadcrumb, .breadcrumbs, [data-cy-files-breadcrumbs] *'))
-				.map((node) => node.textContent?.trim() || '')
-				.filter(Boolean);
-
-			const tokens = [
-				contextLabel,
-				dir,
-				activeViewerTitle,
-				...dir.split('/'),
-				...breadcrumbTexts,
-			].map((value) => String(value || '').trim()).filter(Boolean);
+			// URLSearchParams has already decoded the path. A second decode loses
+			// literal percent escapes and throws for valid names such as "100%".
+			const dir = params.get('dir') || '';
+			const viewer = document.querySelector('#viewer');
+			const style = viewer ? window.getComputedStyle(viewer) : null;
+			const viewerOpen = Boolean(viewer && style?.display !== 'none'
+				&& style?.visibility !== 'hidden' && viewer.offsetHeight > 0);
+			const activeViewerTitle = viewerOpen ? [
+				viewer.querySelector('.modal-header__name'),
+				viewer.querySelector('h2'),
+				viewer.querySelector('.viewer__title'),
+			].map((node) => node?.textContent?.trim()).find(Boolean) || document.title.trim() : '';
+			const currentDirectory = dir.split('/').filter(Boolean).at(-1) || '';
+			// Only the displayed file, current directory, or root share may choose
+			// an action. Never let an _AN parent/breadcrumb override an _RE file.
+			const activeContextLabel = (activeViewerTitle || currentDirectory || contextLabel).trim();
 
 			return {
-				contextLabel,
+				contextLabel: activeContextLabel,
 				dir,
 				activeViewerTitle,
-				tokens: Array.from(new Set(tokens)),
+				fileName: activeViewerTitle || currentDirectory || contextLabel,
+				tokens: activeContextLabel ? [activeContextLabel] : [],
 			};
 		}
 
@@ -534,7 +543,7 @@ body#body-public a.cta_RE.box > span {
 			link.className = `nextinject-public-action nextinject-public-action--${activeRule.headerAction.variant || 'secondary'}`;
 			link.href = this.resolveActionUrl(activeRule.headerAction.url, {
 				contextLabel,
-				fileName: publicContext.activeViewerTitle || publicContext.dir,
+				fileName: publicContext.fileName,
 			});
 			link.target = '_blank';
 			link.rel = 'noreferrer noopener';
@@ -558,7 +567,7 @@ body#body-public a.cta_RE.box > span {
 				|| null;
 			const context = {
 				contextLabel: publicContext.contextLabel,
-				fileName: publicContext.activeViewerTitle || publicContext.dir,
+				fileName: publicContext.fileName,
 			};
 			const action = activeRule.headerAction;
 			const existingLinks = Array.from(document.querySelectorAll([
