@@ -1,9 +1,11 @@
 {
   "name": "nextinject",
-  "version": "2.1.7",
+  "version": "2.1.8",
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "node --test tests/public-context.test.mjs",
+    "test:browser": "node --test tests/browser-runtime.test.mjs",
     "build": "vite build",
     "dev": "vite build --watch",
     "watch": "vite build --watch",

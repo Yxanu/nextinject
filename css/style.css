@@ -42,6 +42,14 @@ body#body-public .nextinject-badge {
 	font-weight: 800;
 }
 
+[data-nextinject-badge-host] > .nextinject-badge {
+	margin-inline: 0;
+}
+
+.files-list__row-name-link > .nextinject-badge {
+	flex: 0 0 auto;
+}
+
 body#body-public .nextinject-badge__icon {
 	width: 26px;
 	height: 26px;

@@ -2,7 +2,7 @@
 
 [Deutsche Version](README.md)
 
-NextInject is a small system-wide Nextcloud app for NC31 through NC33. It marks files and public shares based on configured filename patterns and can add matching public-share header actions.
+NextInject is a small system-wide Nextcloud app for NC31 through NC35. It marks files and public shares based on configured filename patterns and can add matching public-share header actions.
 
 Configuration is admin-only, system-wide, and does not allow arbitrary HTML. Rules are managed centrally in the Nextcloud administration area.
 
@@ -18,7 +18,7 @@ Configuration is admin-only, system-wide, and does not allow arbitrary HTML. Rul
 
 ## Compatibility
 
-- Nextcloud: `31` through `33`
+- Nextcloud: `31` through `35` (since NextInject `2.1.8`)
 - App ID: `nextinject`
 - Namespace: `OCA\NextInject`
 - Surfaces: `Files`, `Public Share`
@@ -96,6 +96,45 @@ Frontend read-only endpoint:
 
 - `GET /apps/nextinject/api/v1/frontend/config`
 
+## Theme adapter (since 2.1.8)
+
+Custom file rows can opt in explicitly:
+
+```html
+<div class="file-row" data-nextinject-file-name="Project_AN.pdf">
+  <button type="button">Project_AN.pdf</button>
+  <span data-nextinject-badge-host></span>
+</div>
+```
+
+NextInject inserts the badge **inside** the reserved host, using the same rules, surfaces, presets and priorities as native rows. Every row is handled, including repeated files in different tabs or sidebars. Native and custom rows can coexist. A custom row without a host is ignored. The theme controls spacing outside the host.
+
+Signal an opened or changed viewer on `window`:
+
+```js
+window.dispatchEvent(new CustomEvent('nextinject:context-changed', {
+  detail: { viewerOpen: true, fileName: file.name, dir: ctx.dir, contextLabel: ctx.title },
+}));
+```
+
+On close, send `{ viewerOpen: false, fileName: null, dir: ctx.dir, contextLabel: ctx.title }`. The optional `dir` is the already decoded current folder path; `contextLabel` is the stable share title. An open viewer always takes precedence over folders, share metadata and README text. An open viewer with an empty filename produces no action. With no viewer, the current directory takes precedence over the root share, so closing a viewer on an `_AN` share may restore a share action.
+
+After rebuilding rows, `detail: { reason: 'theme-render' }` requests a scan and response while preserving viewer context. `detail: { reset: true }` returns to native Nextcloud context detection. History navigation, `popstate` and `hashchange` also clear the explicit theme context. Themes must signal every open, file change and close.
+
+Listen on `window` for `nextinject:updated` after the update:
+
+```js
+window.addEventListener('nextinject:updated', ({ detail }) => {
+  const offerViewerOpen = detail.context?.viewerOpen === true
+    && detail.activeRule?.badgePreset === 'angebot';
+  // Update offer-only content; replace mirrored links using detail.actions.
+});
+```
+
+The payload contains `surface` (`public`/`files`), `context` (`{ contextLabel, dir, activeViewerTitle, fileName, tokens, viewerOpen }` for public shares, otherwise `null`), `activeRule` (`{ id, badgePreset }` or `null`), `actions` (an array of `{ label, url, variant }` with URL-encoded placeholders, or `[]`), and `badgeCount` (including repeated files).
+
+Events are emitted on the initial scan, effective context/badge changes and explicit scan requests. Unchanged automatic scans emit no event. Listeners may update their own UI, but should not echo updates into another context event. Clear mirrored actions immediately on viewer changes and accept new actions only from an update matching the current file. Links are provided without ever invoking them automatically.
+
 ## Migration
 
 Migration runs automatically the first time the admin UI or frontend config is loaded.
@@ -111,10 +150,20 @@ Migration runs automatically the first time the admin UI or frontend config is l
 npm install
 npm run build
 npm run lint
+npm test
 find appinfo lib templates -name '*.php' -print0 | xargs -0 -n1 php -l
 ```
 
 Before a release, commit the built files in `js/` and `css/`.
+
+Run targeted DOM/browser regression tests against a local synthetic server using an existing Playwright installation:
+
+```bash
+# Set an absolute module path if Playwright is not available in this project.
+PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs PLAYWRIGHT_CHANNEL=chrome npm run test:browser
+```
+
+Without `PLAYWRIGHT_CHANNEL`, Playwright uses Chromium. Optionally set `NEXTINJECT_EVIDENCE_DIR=/absolute/path` for screenshots. Tests use synthetic rules, block external browser requests and require local requests to be read-only. They do not replace a smoke test on a real Nextcloud 35/PHP 8.5 installation. `js/injector.js` and `css/style.css` are shipped directly; editing them does not require rebuilding the admin bundle.
 
 ## Troubleshooting
 
@@ -130,6 +179,10 @@ Before a release, commit the built files in `js/` and `css/`.
 - Verify `headerAction` is enabled.
 - Verify the share title, folder path, or file name contains the marker.
 - For theme styles, check whether `cta_AN`, `AN_open`, and `gimmick_active` are expected.
+
+### Updating to 2.1.8 and browser caching
+
+After replacing app files, run `php occ upgrade` as the web-server user and confirm `2.1.8` with `php occ config:app:get nextinject installed_version`. Nextcloud 35 derives the JavaScript version hash from installed app versions; replacing files or changing only `max-version` does not reliably refresh that cache key. Fresh share HTML must reference `injector.js?v=…` with a changed hash. Already open tabs need a page reload. No cloud-specific script-loading override is required.
 
 ### App does not appear
 

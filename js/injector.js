@@ -22,6 +22,19 @@
 	}
 
 	window.__nextInjectRuntimeActive = true;
+	const contextNameSelector = [
+		'title', '.kunde-name', '#header .header-title', '#header .header-appname',
+		'.public-page__heading', '#nextcloud', '#content > h1',
+		'#viewer .modal-header__name', '#viewer .viewer__title', '#viewer h2',
+		'.files-list__row-name-text', '.files-list__row-name-link', 'td.filename',
+		'tr[data-file] .name', '.files-filestable .name',
+	].join(', ');
+	const contextStructureSelector = [
+		contextNameSelector, '#content', '#app-content', '#viewer', '#header',
+		'#header .header-end', '#header .header-right', '#header-primary-action', '#public-page-menu',
+		'meta[property="og:title"]', '.files-list__row', '[data-cy-files-list-row]',
+		'tr[data-file]', '.files-filestable', '[data-nextinject-file-name]', '[data-nextinject-badge-host]',
+	].join(', ');
 
 	class NextInjectRuntime {
 		constructor() {
@@ -30,7 +43,10 @@
 			this.settings = { injectionDelay: 180, debugMode: false };
 			this.scanTimer = null;
 			this.observer = null;
-			this.historyPatched = false;
+			this.themeContext = null;
+			this.lastUpdateSignature = '';
+			this.forceUpdate = false;
+			this.originalWidgetDisplay = null;
 			this.instanceId = `nextinject-${Date.now()}`;
 		}
 
@@ -41,6 +57,8 @@
 		}
 
 		async init() {
+			// Capture theme context while the read-only configuration request is in flight.
+			this.setupContextListener();
 			await this.loadConfig();
 			this.mount();
 		}
@@ -77,8 +95,31 @@
 			this.scheduleScan();
 			this.setupObserver();
 			this.patchHistory();
-			window.addEventListener('hashchange', () => this.scheduleScan());
+			const navigate = () => {
+				this.themeContext = null;
+				this.scheduleScan();
+			};
+			window.addEventListener('hashchange', navigate);
+			window.addEventListener('popstate', navigate);
 			window.addEventListener('load', () => this.scheduleScan());
+		}
+
+		setupContextListener() {
+			window.addEventListener('nextinject:context-changed', (event) => {
+				const detail = event.detail;
+				if (detail?.reset === true) {
+					this.themeContext = null;
+				} else if (typeof detail?.viewerOpen === 'boolean' || typeof detail?.fileName === 'string' || detail?.fileName === null) {
+					this.themeContext = {
+						viewerOpen: typeof detail.viewerOpen === 'boolean' ? detail.viewerOpen : typeof detail.fileName === 'string',
+						fileName: typeof detail.fileName === 'string' ? detail.fileName.trim() : '',
+						dir: typeof detail.dir === 'string' ? detail.dir : undefined,
+						contextLabel: typeof detail.contextLabel === 'string' ? detail.contextLabel.trim() : undefined,
+					};
+				}
+				this.forceUpdate = true;
+				this.scheduleScan();
+			});
 		}
 
 		setupObserver() {
@@ -92,31 +133,50 @@
 					this.scheduleScan();
 				}
 			});
-			this.observer.observe(target, { childList: true, subtree: true, characterData: true });
+			this.observer.observe(target, {
+				childList: true, subtree: true, characterData: true, attributes: true,
+				attributeFilter: ['data-nextinject-file-name', 'data-nextinject-badge-host',
+					'data-cy-files-list-row-name', 'data-file', 'content', 'class', 'style', 'hidden', 'aria-hidden'],
+			});
 		}
 
 		isExternalMutation(mutation) {
+			if (this.isOwnedMutationNode(mutation.target)) {
+				return false;
+			}
+			if (mutation.type === 'attributes') {
+				// Ignore our own body/header classes and unrelated theme animations.
+				return ['data-nextinject-file-name', 'data-nextinject-badge-host', 'data-cy-files-list-row-name', 'data-file'].includes(mutation.attributeName)
+					|| Boolean(mutation.target.matches?.('#viewer, #viewer .modal-wrapper, meta[property="og:title"]'));
+			}
 			if (mutation.type === 'characterData') {
-				return !this.isOwnedMutationNode(mutation.target.parentElement);
+				return Boolean(mutation.target.parentElement?.closest(contextNameSelector));
 			}
 
 			return [...mutation.addedNodes, ...mutation.removedNodes]
-				.some((node) => !this.isOwnedMutationNode(node));
+				.some((node) => !this.isOwnedMutationNode(node) && (
+					Boolean(mutation.target.closest?.(contextNameSelector))
+					|| (node instanceof Element && (node.matches(contextStructureSelector) || node.querySelector(contextStructureSelector)))
+				));
 		}
 
 		isOwnedMutationNode(node) {
+			if (node?.nodeType === Node.TEXT_NODE) {
+				return this.isOwnedMutationNode(node.parentElement);
+			}
 			if (!(node instanceof Element)) {
 				return false;
 			}
 
 			return node.id === 'nextinject-legacy-theme-fixes'
 				|| node.dataset.nextinjectOwner === this.instanceId
-				|| Boolean(node.querySelector?.(`[data-nextinject-owner="${this.instanceId}"], #nextinject-legacy-theme-fixes`));
+				|| Boolean(node.closest?.(`[data-nextinject-owner="${this.instanceId}"], #nextinject-legacy-theme-fixes`));
 		}
 
 		getObserverTarget() {
-			return document.querySelector('#content')
-				|| document.querySelector('#app-content')
+			// Vue replaces #content and teleports the viewer outside it. The document
+			// root also catches title updates without polling or reattaching observers.
+			return document.documentElement
 				|| document.body;
 		}
 
@@ -126,7 +186,10 @@
 			}
 
 			window.__nextInjectHistoryPatched = true;
-			const trigger = () => this.scheduleScan();
+			const trigger = () => {
+				this.themeContext = null;
+				this.scheduleScan();
+			};
 			const originalPushState = history.pushState;
 			const originalReplaceState = history.replaceState;
 
@@ -255,61 +318,85 @@ body#body-public a.cta_RE.box > span {
 		}
 
 		scheduleScan() {
-			window.clearTimeout(this.scanTimer);
-			this.scanTimer = window.setTimeout(() => this.scan(), this.settings.injectionDelay || 180);
+			if (this.scanTimer !== null) {
+				return;
+			}
+			this.scanTimer = window.setTimeout(() => {
+				this.scanTimer = null;
+				this.scan();
+			}, this.settings.injectionDelay ?? 180);
 		}
 
 		scan() {
-			this.cleanup();
-
+			this.scanChanged = false;
 			const contextLabel = this.getContextLabel();
 			const fileTargets = this.getFileTargets();
 			const applicableRules = this.rules
-				.filter((rule) => Array.isArray(rule.surfaces) && rule.surfaces.includes(this.surface))
+				.filter((rule) => rule.enabled !== false && Array.isArray(rule.surfaces) && rule.surfaces.includes(this.surface))
 				.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+			const badges = new Set();
+			const hosts = new Set();
+			const matches = [];
 
 			if (this.surface === 'files' || this.surface === 'public') {
 				fileTargets.forEach((target) => {
 					const matchingRule = applicableRules.find((rule) => this.matches(target.name, rule.matcher));
 					if (matchingRule) {
-						this.injectBadge(target, matchingRule);
+						const result = this.injectBadge(target, matchingRule);
+						if (result) {
+							badges.add(result.badge);
+							hosts.add(result.host);
+							matches.push({ fileName: target.name, ruleId: matchingRule.id });
+						}
 					}
 				});
 			}
 
-			if (this.surface === 'public') {
-				const publicContext = this.getPublicContext(contextLabel);
-				const activePublicRule = applicableRules.find((rule) =>
+			this.cleanup(badges, hosts);
+			const publicContext = this.surface === 'public' ? this.getPublicContext(contextLabel) : null;
+			const activePublicRule = publicContext ? applicableRules.find((rule) =>
 					rule.surfaces.includes('public') && this.contextMatchesRule(publicContext, rule)
-				) || null;
+				) || null : null;
 
-				this.applyPublicThemeState(activePublicRule, publicContext);
+			if (publicContext) {
+				this.applyPublicThemeState(activePublicRule);
 				this.injectPublicActions(publicContext.contextLabel, activePublicRule, publicContext);
 			}
-		}
-
-		cleanup() {
-			document.querySelectorAll(`[data-nextinject-owner="${this.instanceId}"]`).forEach((node) => {
-				if (this.surface === 'public' && this.isPublicActionNode(node)) {
-					return;
-				}
-				node.remove();
-			});
-			document.querySelectorAll('.nextinject-runtime-match').forEach((node) => node.classList.remove('nextinject-runtime-match'));
-			document.body?.classList.remove('AN_open', 'RE_open', 'nextinject-offer-open', 'nextinject-invoice-open');
-			document.querySelector('#header')?.classList.remove('gimmick_active');
-			const provenExpert = document.querySelector('#ProvenExpert_widgetbar_container');
-			if (provenExpert instanceof HTMLElement) {
-				provenExpert.style.display = '';
+			const action = activePublicRule?.headerAction;
+			const detail = {
+				surface: this.surface,
+				context: publicContext ? { ...publicContext, viewerOpen: this.getViewerContext().viewerOpen } : null,
+				activeRule: activePublicRule ? {
+					id: activePublicRule.id,
+					badgePreset: activePublicRule.badge?.key || activePublicRule.badgePreset || '',
+				} : null,
+				actions: action && action.enabled !== false ? [{
+					label: action.label,
+					url: this.resolveActionUrl(action.url, publicContext),
+					variant: action.variant || 'secondary',
+				}] : [],
+				badgeCount: badges.size,
+			};
+			const signature = JSON.stringify({ ...detail, matches });
+			if (this.forceUpdate || this.scanChanged || signature !== this.lastUpdateSignature) {
+				this.forceUpdate = false;
+				this.lastUpdateSignature = signature;
+				window.dispatchEvent(new CustomEvent('nextinject:updated', { detail }));
 			}
 		}
 
-		isPublicActionNode(node) {
-			return node instanceof HTMLElement
-				&& (
-					node.classList.contains('nextinject-public-actions')
-					|| node.matches('a.cta_AN.box, a.cta_RE.box')
-				);
+		cleanup(badges, hosts) {
+			document.querySelectorAll(`.nextinject-badge[data-nextinject-owner="${this.instanceId}"]`).forEach((node) => {
+				if (!badges.has(node)) {
+					node.remove();
+					this.scanChanged = true;
+				}
+			});
+			document.querySelectorAll('.nextinject-runtime-match').forEach((node) => {
+				if (!hosts.has(node)) {
+					node.classList.remove('nextinject-runtime-match');
+				}
+			});
 		}
 
 		cleanupPublicActions(keepKind = null) {
@@ -357,47 +444,58 @@ body#body-public a.cta_RE.box > span {
 		}
 
 		getFileTargets() {
-			const modernRows = this.getModernFileTargets();
-			if (modernRows.length > 0) {
-				return modernRows;
+			const targets = this.getThemeFileTargets();
+			const themeRows = targets.map(({ row }) => row);
+			const seen = new Set(themeRows);
+			for (const target of [...this.getModernFileTargets(), ...this.getLegacyFileTargets()]) {
+				if (!seen.has(target.row) && !themeRows.some((row) => row.contains(target.row) || target.row.contains(row))) {
+					seen.add(target.row);
+					targets.push(target);
+				}
 			}
+			return targets;
+		}
 
-			const legacyRows = this.getLegacyFileTargets();
-			if (legacyRows.length > 0) {
-				return legacyRows;
-			}
-
-			return [];
+		getThemeFileTargets() {
+			return Array.from(document.querySelectorAll('[data-nextinject-file-name]')).flatMap((row) => {
+				const name = row.getAttribute('data-nextinject-file-name')?.trim();
+				// Explicit hosts keep badges out of unrelated theme text and controls.
+				if (!name) {
+					return [];
+				}
+				return Array.from(row.querySelectorAll('[data-nextinject-badge-host]'))
+					.filter((badgeHost) => badgeHost.closest('[data-nextinject-file-name]') === row)
+					.map((badgeHost) => ({ row, node: badgeHost, badgeHost, name }));
+			});
 		}
 
 		getModernFileTargets() {
-			const rows = Array.from(document.querySelectorAll('tr.files-list__row, [data-cy-files-list-row]'));
+			const rows = Array.from(document.querySelectorAll('.files-list__row, [data-cy-files-list-row]'));
 			const targets = [];
-			const seen = new Set();
 
 			rows.forEach((row) => {
 				if (!(row instanceof HTMLElement)) {
 					return;
 				}
 
-				const name = String(
-					row.dataset.cyFilesListRowName
-					|| row.getAttribute('data-cy-files-list-row-name')
-					|| ''
-				).trim();
-				if (!name || seen.has(name)) {
-					return;
-				}
-
-				const node = row.querySelector('.files-list__row-name-text > .files-list__row-name-')
-					|| row.querySelector('.files-list__row-name-text')
+				const nameText = row.querySelector('.files-list__row-name-text');
+				const node = nameText
 					|| row.querySelector('.files-list__row-name-link')
 					|| row.querySelector('[data-cy-files-list-row-name]');
 				if (!(node instanceof HTMLElement)) {
 					return;
 				}
 
-				seen.add(name);
+				const extension = row.querySelector('.files-list__row-name-extension');
+				const baseName = nameText?.textContent?.trim() || '';
+				const extensionText = extension?.textContent?.trim() || '';
+				const visibleName = nameText ? baseName + (extension && !nameText.contains(extension) ? extensionText : '') : '';
+				const name = String(row.dataset.cyFilesListRowName
+					|| node.getAttribute('data-cy-files-list-row-name')
+					|| visibleName || this.getUnbadgedText(node)).trim();
+				if (!name) {
+					return;
+				}
 				targets.push({ node, name, row });
 			});
 
@@ -407,7 +505,6 @@ body#body-public a.cta_RE.box > span {
 		getLegacyFileTargets() {
 			const rows = Array.from(document.querySelectorAll('tr[data-file], .files-filestable tbody tr'));
 			const targets = [];
-			const seen = new Set();
 
 			rows.forEach((row) => {
 				if (!(row instanceof HTMLElement) || row.querySelector('th')) {
@@ -423,43 +520,59 @@ body#body-public a.cta_RE.box > span {
 					return;
 				}
 
-				const rawName = String(row.getAttribute('data-file') || node.textContent || '').trim();
+				const rawName = String(row.getAttribute('data-file') || this.getUnbadgedText(node)).trim();
 				const name = rawName.replace(/\s+/g, ' ');
-				if (!name || seen.has(name)) {
+				if (!name) {
 					return;
 				}
 
-				seen.add(name);
 				targets.push({ node, name, row });
 			});
 
 			return targets;
 		}
 
+		getUnbadgedText(node) {
+			const clone = node.cloneNode(true);
+			clone.querySelectorAll('.nextinject-badge').forEach((badge) => badge.remove());
+			return clone.textContent || '';
+		}
+
+		getViewerContext() {
+			if (this.themeContext) {
+				return this.themeContext;
+			}
+			const viewer = document.querySelector('#viewer');
+			const style = viewer ? window.getComputedStyle(viewer) : null;
+			const viewerOpen = Boolean(viewer && style?.display !== 'none'
+				&& style?.visibility !== 'hidden' && viewer.offsetHeight > 0
+				&& viewer.getAttribute?.('aria-hidden') !== 'true');
+			const fileName = viewerOpen ? [
+				viewer.querySelector('.modal-header__name'),
+				viewer.querySelector('.viewer__title'),
+				viewer.querySelector('h2'),
+			].map((node) => node?.textContent?.trim()).find(Boolean) || document.title.trim() : '';
+			return { viewerOpen, fileName };
+		}
+
 		getPublicContext(contextLabel) {
 			const params = new URLSearchParams(window.location.search);
 			// URLSearchParams has already decoded the path. A second decode loses
 			// literal percent escapes and throws for valid names such as "100%".
-			const dir = params.get('dir') || '';
-			const viewer = document.querySelector('#viewer');
-			const style = viewer ? window.getComputedStyle(viewer) : null;
-			const viewerOpen = Boolean(viewer && style?.display !== 'none'
-				&& style?.visibility !== 'hidden' && viewer.offsetHeight > 0);
-			const activeViewerTitle = viewerOpen ? [
-				viewer.querySelector('.modal-header__name'),
-				viewer.querySelector('h2'),
-				viewer.querySelector('.viewer__title'),
-			].map((node) => node?.textContent?.trim()).find(Boolean) || document.title.trim() : '';
+			const dir = this.themeContext?.dir ?? params.get('dir') ?? '';
+			contextLabel = this.themeContext?.contextLabel ?? contextLabel;
+			const { viewerOpen, fileName } = this.getViewerContext();
+			const activeViewerTitle = viewerOpen ? fileName : '';
 			const currentDirectory = dir.split('/').filter(Boolean).at(-1) || '';
 			// Only the displayed file, current directory, or root share may choose
 			// an action. Never let an _AN parent/breadcrumb override an _RE file.
-			const activeContextLabel = (activeViewerTitle || currentDirectory || contextLabel).trim();
+			const activeContextLabel = (viewerOpen ? activeViewerTitle : currentDirectory || contextLabel).trim();
 
 			return {
 				contextLabel: activeContextLabel,
 				dir,
 				activeViewerTitle,
-				fileName: activeViewerTitle || currentDirectory || contextLabel,
+				fileName: activeContextLabel,
 				tokens: activeContextLabel ? [activeContextLabel] : [],
 			};
 		}
@@ -479,28 +592,59 @@ body#body-public a.cta_RE.box > span {
 		}
 
 		injectBadge(target, rule) {
-			const host = this.resolveBadgeHost(target.node);
+			const host = target.badgeHost || this.resolveBadgeHost(target.node);
 			if (!host) {
 				return;
 			}
 
-			const badge = document.createElement('span');
-			badge.className = `nextinject-badge ${rule.badge.className || ''}`;
-			badge.dataset.nextinjectOwner = this.instanceId;
-			badge.dataset.nextinjectRule = rule.id;
-			badge.innerHTML = `
-				<span class="nextinject-badge__icon">${this.escape(rule.badge.icon || '')}</span>
-				<span>${this.escape(rule.badge.text || rule.label)}</span>
-			`;
-			host.insertAdjacentElement('afterend', badge);
-			host.classList.add('nextinject-runtime-match');
+			const existing = target.badgeHost ? Array.from(host.children).find((node) =>
+				node.classList.contains('nextinject-badge') && node.dataset.nextinjectOwner === this.instanceId
+			) : host.nextElementSibling;
+			const badge = existing?.classList.contains('nextinject-badge')
+				&& existing.dataset.nextinjectOwner === this.instanceId ? existing : document.createElement('span');
+			const className = `nextinject-badge ${rule.badge.className || ''}`;
+			const iconText = rule.badge.icon || '';
+			const labelText = rule.badge.text || rule.label;
+			if (badge.className !== className || badge.dataset.nextinjectRule !== rule.id
+				|| badge.children.length !== 2 || badge.firstElementChild?.textContent !== iconText
+				|| badge.lastElementChild?.textContent !== labelText) {
+				badge.className = className;
+				badge.dataset.nextinjectOwner = this.instanceId;
+				badge.dataset.nextinjectRule = rule.id;
+				const icon = document.createElement('span');
+				icon.className = 'nextinject-badge__icon';
+				icon.textContent = iconText;
+				const label = document.createElement('span');
+				label.textContent = labelText;
+				badge.replaceChildren(icon, label);
+				this.scanChanged = true;
+			}
+			if (!badge.parentElement) {
+				if (target.badgeHost) {
+					host.appendChild(badge);
+				} else {
+					host.insertAdjacentElement('afterend', badge);
+				}
+				this.scanChanged = true;
+			}
+			if (!host.classList.contains('nextinject-runtime-match')) {
+				host.classList.add('nextinject-runtime-match');
+			}
+			return { badge, host };
 		}
 
 		resolveBadgeHost(node) {
-			const modernRow = node.closest?.('tr.files-list__row, [data-cy-files-list-row]');
+			const modernRow = node.closest?.('.files-list__row, [data-cy-files-list-row]');
 			const modernNameText = modernRow?.querySelector?.('.files-list__row-name-text');
 			if (modernNameText) {
+				const extension = modernRow.querySelector('.files-list__row-name-extension');
+				if (extension && !modernNameText.contains(extension) && extension.parentElement === modernNameText.parentElement) {
+					return extension;
+				}
 				return modernNameText;
+			}
+			if (modernRow) {
+				return modernRow.querySelector('.files-list__row-name-link') || node;
 			}
 
 			const nestedName = node.querySelector?.('.innernametext, .nametext, a.name, .files-list__row-name-link');
@@ -520,7 +664,7 @@ body#body-public a.cta_RE.box > span {
 				|| document.querySelector('#header')
 				|| document.body;
 
-			if (!activeRule?.headerAction) {
+			if (!activeRule?.headerAction || activeRule.headerAction.enabled === false) {
 				this.cleanupPublicActions();
 				return;
 			}
@@ -547,23 +691,33 @@ body#body-public a.cta_RE.box > span {
 			});
 			link.target = '_blank';
 			link.rel = 'noreferrer noopener';
-			link.textContent = activeRule.headerAction.label;
+			if (link.textContent !== activeRule.headerAction.label) {
+				link.textContent = activeRule.headerAction.label;
+			}
 			if (!link.parentElement) {
 				wrapper.appendChild(link);
 			}
 
-			const publicPageMenu = headerHost.querySelector('#public-page-menu');
+			const publicPageMenu = this.getDirectHeaderAnchor(headerHost, '#public-page-menu');
 			if (publicPageMenu && wrapper.nextSibling !== publicPageMenu) {
 				headerHost.insertBefore(wrapper, publicPageMenu);
-			} else if (!wrapper.parentElement) {
+			} else if (wrapper.parentElement !== headerHost) {
 				headerHost.appendChild(wrapper);
 			}
 		}
 
+		getDirectHeaderAnchor(headerHost, selector) {
+			let anchor = headerHost.querySelector(selector);
+			while (anchor && anchor.parentElement !== headerHost) {
+				anchor = anchor.parentElement;
+			}
+			return anchor;
+		}
+
 		injectLegacyThemeCta(headerHost, activeRule, publicContext) {
 			const presetKey = activeRule.badge?.key || activeRule.badgePreset || '';
-			const insertBeforeTarget = headerHost.querySelector('#header-primary-action')
-				|| headerHost.querySelector('#public-page-menu')
+			const insertBeforeTarget = this.getDirectHeaderAnchor(headerHost, '#header-primary-action')
+				|| this.getDirectHeaderAnchor(headerHost, '#public-page-menu')
 				|| null;
 			const context = {
 				contextLabel: publicContext.contextLabel,
@@ -607,27 +761,28 @@ body#body-public a.cta_RE.box > span {
 			}
 		}
 
-		applyPublicThemeState(activeRule, publicContext) {
-			if (!activeRule) {
-				return;
-			}
-
-			const presetKey = activeRule.badge?.key || activeRule.badgePreset || '';
+		applyPublicThemeState(activeRule) {
+			const presetKey = activeRule?.badge?.key || activeRule?.badgePreset || '';
 			const body = document.body;
 			const header = document.querySelector('#header');
 			const provenExpert = document.querySelector('#ProvenExpert_widgetbar_container');
 
-			if (presetKey === 'angebot') {
-				body?.classList.add('AN_open', 'nextinject-offer-open');
-				header?.classList.add('gimmick_active');
-			}
+			body?.classList.toggle('AN_open', presetKey === 'angebot');
+			body?.classList.toggle('nextinject-offer-open', presetKey === 'angebot');
+			body?.classList.toggle('RE_open', presetKey === 'rechnung');
+			body?.classList.toggle('nextinject-invoice-open', presetKey === 'rechnung');
+			header?.classList.toggle('gimmick_active', presetKey === 'angebot');
 
-			if (presetKey === 'rechnung') {
-				body?.classList.add('RE_open', 'nextinject-invoice-open');
-			}
-
-			if ((presetKey === 'angebot' || presetKey === 'rechnung') && provenExpert instanceof HTMLElement) {
-				provenExpert.style.display = 'block';
+			if (provenExpert instanceof HTMLElement) {
+				if (presetKey === 'angebot' || presetKey === 'rechnung') {
+					this.originalWidgetDisplay ??= provenExpert.style.display;
+					if (provenExpert.style.display !== 'block') {
+						provenExpert.style.display = 'block';
+					}
+				} else if (this.originalWidgetDisplay !== null) {
+					provenExpert.style.display = this.originalWidgetDisplay;
+					this.originalWidgetDisplay = null;
+				}
 			}
 		}
 
