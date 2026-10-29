@@ -159,6 +159,18 @@ Die Migration läuft automatisch beim ersten Laden der Admin- oder Frontend-Konf
 
 ## Entwicklung
 
+### Projekt-Webseite
+
+Die Landingpage unter [nextinject.tosa.io](https://nextinject.tosa.io/) wird aus diesem Repository gebaut. `appinfo/info.xml` liefert Version und Nextcloud-Kompatibilität; `README.en.md` liefert Einleitung, Funktionsliste und JSON-Regelbeispiel. Layout und weitere Webseitentexte stehen in `site/index.template.html`. Download- und Release-Links führen immer zum neuesten veröffentlichten GitHub-Release.
+
+```bash
+npm run build:site
+```
+
+Der Generator benötigt keine zusätzlichen Pakete und schreibt nach `dist/site/`, einschließlich `site-manifest.json` zur Deployment-Prüfung. Das Dockerfile führt denselben Build aus und liefert nur die erzeugten statischen Dateien über nginx aus. Es sind keine GitHub-API-Aufrufe im Browser, API-Tokens oder manuellen HTML-Kopien nötig. Coolify baut die Webseite von `main`; der GitHub-Push-Webhook muss aktiviert bleiben. Ein neues Release aktualisiert das bestehende Ziel des Latest-Release-Links automatisch. Die Nextcloud-App wird durch dieses Webseiten-Deployment nicht deployt.
+
+### App-Entwicklung
+
 ```bash
 npm install
 npm run build

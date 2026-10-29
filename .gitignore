@@ -12,5 +12,6 @@ Thumbs.db
 .vscode/
 .venv/
 node_modules/
+dist/
 *.orig
 # Added by automation

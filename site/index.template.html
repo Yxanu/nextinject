@@ -3,14 +3,16 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<meta name="description" content="NextInject is a small admin-only Nextcloud app for typed file badges and public-share header actions.">
+	<meta name="description" content="{{DESCRIPTION}}">
+	<meta name="nextinject-site-build" content="{{BUILD_ID}}">
 	<meta property="og:title" content="NextInject">
-	<meta property="og:description" content="Typed file markers and public-share actions for Nextcloud.">
+	<meta property="og:description" content="{{DESCRIPTION}}">
 	<meta property="og:type" content="website">
 	<meta property="og:image" content="https://nextinject.tosa.io/nextinject.png">
 	<meta name="theme-color" content="#09090b">
 	<link rel="icon" href="nextinject.png">
-	<title>NextInject - Typed Nextcloud file markers</title>
+	<title>NextInject - File badges for Nextcloud {{NC_MAX}}</title>
+	<link rel="canonical" href="https://nextinject.tosa.io/">
 	<style>
 		:root {
 			color-scheme: dark;
@@ -36,6 +38,10 @@
 
 		html {
 			scroll-behavior: smooth;
+		}
+
+		section[id] {
+			scroll-margin-top: 96px;
 		}
 
 		body {
@@ -359,6 +365,7 @@
 
 		.code-card,
 		.notes-card {
+			min-width: 0;
 			border: 1px solid var(--border);
 			border-radius: 10px;
 			background: var(--surface);
@@ -396,11 +403,13 @@
 
 		.install {
 			display: grid;
+			grid-template-columns: minmax(0, 1fr);
 			gap: 18px;
 		}
 
 		.install-row {
 			display: grid;
+			min-width: 0;
 			grid-template-columns: 180px minmax(0, 1fr);
 			gap: 24px;
 			padding: 22px 0;
@@ -476,7 +485,7 @@
 			.section-heading,
 			.rule-layout,
 			.install-row {
-				grid-template-columns: 1fr;
+				grid-template-columns: minmax(0, 1fr);
 				gap: 26px;
 			}
 
@@ -504,6 +513,14 @@
 				font-size: 12px;
 			}
 		}
+		.release-line { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 24px; color: var(--muted); font-size: 13px; }
+		.release-line a { padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px; text-decoration: none; color: var(--text); }
+		.feature-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; list-style: none; }
+		.feature-list li { padding: 22px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--muted); font-size: 15px; }
+		.feature-list code { color: var(--text); overflow-wrap: anywhere; }
+		@media (max-width: 860px) { .feature-list { grid-template-columns: 1fr; } }
+		@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .button { transition: none; } }
+
 	</style>
 </head>
 <body>
@@ -526,10 +543,11 @@
 		<section class="hero">
 			<div class="container hero-grid">
 				<div>
+					<p class="release-line"><a href="{{RELEASE_URL}}">v{{VERSION}}</a><span>Nextcloud {{NC_MIN}}–{{NC_MAX}}</span></p>
 					<h1>Typed file markers for Nextcloud.</h1>
-					<p class="hero-copy">NextInject adds compact badges to matching files and can show safe, rule-based header actions inside public shares. It is admin-only, system-wide, and built for NC31 through NC33.</p>
+					<p class="hero-copy">{{INTRO}}</p>
 					<div class="actions">
-						<a class="button primary" href="https://github.com/Yxanu/nextinject" rel="noopener">View on GitHub</a>
+						<a class="button primary" href="{{RELEASE_URL}}" rel="noopener">Download latest release</a>
 						<a class="button" href="https://github.com/Yxanu/nextinject/blob/main/README.en.md" rel="noopener">Read docs</a>
 					</div>
 				</div>
@@ -542,14 +560,14 @@
 					<div class="file-list">
 						<div class="file-row">
 							<div>
-								<div class="file-name">osite Network GmbH_AN-251218-02.pdf</div>
+								<div class="file-name">Example_AN.pdf</div>
 								<div class="file-meta">matched by `_AN`</div>
 							</div>
 							<span class="badge offer">Offer</span>
 						</div>
 						<div class="file-row">
 							<div>
-								<div class="file-name">rechnung_RE-2026-04.pdf</div>
+								<div class="file-name">Example_RE.pdf</div>
 								<div class="file-meta">matched by `_RE`</div>
 							</div>
 							<span class="badge invoice">Invoice</span>
@@ -564,7 +582,7 @@
 					</div>
 					<div class="share-action">
 						<strong>Header action from the offer rule</strong>
-						<a class="button" href="https://github.com/Yxanu/nextinject" rel="noopener">Confirm offer</a>
+						<a class="button" href="#rules" aria-label="View the example offer rule">Confirm offer</a>
 					</div>
 				</div>
 			</div>
@@ -576,20 +594,7 @@
 					<h2>Small surface, clear behavior.</h2>
 					<p>NextInject intentionally avoids arbitrary HTML injection. Admins define typed JSON rules, choose badge presets, and enable public-share actions only where they are needed.</p>
 				</div>
-				<div class="feature-grid">
-					<article class="feature">
-						<h3>Files and shares</h3>
-						<p>Rules can match file names, share titles, folder paths, and public-share context. Matching items get a visual badge without changing the stored file.</p>
-					</article>
-					<article class="feature">
-						<h3>Public actions</h3>
-						<p>Offer and invoice flows can expose a controlled header button, such as <code>Confirm offer</code>, with placeholders for file and context labels.</p>
-					</article>
-					<article class="feature">
-						<h3>Admin native</h3>
-						<p>The configuration lives under <code>Settings -> Administration -> NextInject</code>, with import, export, defaults, and typed validation.</p>
-					</article>
-				</div>
+				<ul class="feature-list">{{FEATURES}}</ul>
 			</div>
 		</section>
 
@@ -601,27 +606,13 @@
 				</div>
 				<div class="rule-layout">
 					<div class="code-card">
-						<pre><code>{
-  "id": "angebot",
-  "label": "Offer",
-  "matcher": "_AN",
-  "surfaces": ["files", "public"],
-  "badgePreset": "angebot",
-  "headerAction": {
-    "enabled": true,
-    "label": "Confirm offer",
-    "url": "https://example.com/confirm?file={fileName}",
-    "variant": "primary"
-  },
-  "enabled": true,
-  "priority": 300
-}</code></pre>
+						<pre><code>{{RULE_JSON}}</code></pre>
 					</div>
 					<div class="notes-card">
 						<ul>
 							<li><strong>Built-in presets</strong> Offer, invoice, delivery, order, protocol, and notice markers.</li>
 							<li><strong>Safe migration</strong> Legacy `nextinject` and `elementinjector` settings are mapped to typed rules.</li>
-							<li><strong>Theme compatibility</strong> Existing share styles such as <code>cta_AN</code>, <code>AN_open</code>, and <code>gimmick_active</code> are still supported.</li>
+							<li><strong>Theme adapters</strong> Explicit filename and badge-host hooks support custom rows, repeated files, and viewer context events. <a href="{{DOCS_URL}}">See the integration contract.</a></li>
 						</ul>
 					</div>
 				</div>
@@ -632,13 +623,13 @@
 			<div class="container">
 				<div class="section-heading">
 					<h2>Install it like a normal Nextcloud app.</h2>
-					<p>The repository includes built assets for the app runtime and admin UI, so production installs do not need a server-side Node build.</p>
+					<p>Get the complete TAR.GZ or ZIP installation package and SHA-256 checksums from the <a href="{{RELEASE_URL}}">latest GitHub release</a>. The app includes its built admin UI and runtime; no server-side Node build is needed.</p>
 				</div>
 				<div class="install">
 					<div class="install-row">
 						<h3>Requirements</h3>
 						<ul>
-							<li>Nextcloud 31, 32, or 33</li>
+							<li>Nextcloud {{NC_MIN}} through {{NC_MAX}}</li>
 							<li>Admin access to the target instance</li>
 							<li>Write access to the Nextcloud apps directory</li>
 						</ul>
@@ -646,11 +637,12 @@
 					<div class="install-row">
 						<h3>Quick install</h3>
 						<div class="code-card">
-							<pre><code>cd /var/www/nextcloud/apps
-git clone https://github.com/Yxanu/nextinject.git nextinject
-chown -R www-data:www-data nextinject
+							<pre><code># Extract nextinject/ into apps/ or your custom-apps directory.
+# Run these commands from your Nextcloud installation directory.
+cd /var/www/nextcloud
 sudo -u www-data php occ app:enable nextinject
-sudo -u www-data php occ upgrade</code></pre>
+sudo -u www-data php occ upgrade
+sudo -u www-data php occ config:app:get nextinject installed_version</code></pre>
 						</div>
 					</div>
 					<div class="install-row">
@@ -664,11 +656,11 @@ sudo -u www-data php occ upgrade</code></pre>
 
 	<footer class="footer">
 		<div class="container footer-inner">
-			<span>NextInject v2.1.1 - AGPL-3.0-or-later</span>
+			<span>NextInject v{{VERSION}} · <a href="{{LICENSE_URL}}">License</a></span>
 			<div class="footer-links">
 				<a href="https://github.com/Yxanu/nextinject" rel="noopener">Repository</a>
 				<a href="https://github.com/Yxanu/nextinject/issues" rel="noopener">Issues</a>
-				<a href="https://github.com/Yxanu/nextinject/releases" rel="noopener">Releases</a>
+				<a href="{{RELEASE_URL}}" rel="noopener">Release notes</a>
 			</div>
 		</div>
 	</footer>

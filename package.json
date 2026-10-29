@@ -4,12 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/public-context.test.mjs",
+    "test": "node --test tests/public-context.test.mjs tests/site-build.test.mjs",
+    "build:site": "node scripts/build-site.mjs",
     "test:browser": "node --test tests/browser-runtime.test.mjs",
     "build": "vite build",
     "dev": "vite build --watch",
     "watch": "vite build --watch",
-    "lint": "node --check js/admin.js && node --check js/injector.js && node --check vite.config.js"
+    "lint": "node --check js/admin.js && node --check js/injector.js && node --check scripts/build-site.mjs && node --check vite.config.js"
   },
   "dependencies": {
     "@mdi/js": "^7.4.47",
